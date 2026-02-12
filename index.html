@@ -2339,7 +2339,7 @@
     }
 
     // Tab 3: Cases View
-    function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase, onRefresh }) {
+    function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase, onRefresh, onSelectEquipment }) {
       const [form, setForm] = React.useState(null);
       const [saving, setSaving] = React.useState(false);
       const [photoViewer, setPhotoViewer] = React.useState(null);
@@ -2349,7 +2349,7 @@
           .filter(item => item.caseId === caseId && item.equipmentId)
           .map(item => {
             const equip = equipment.find(e => e.id === item.equipmentId);
-            return equip?.name || 'Unknown';
+            return equip || { name: 'Unknown' };
           });
       };
 
@@ -2357,7 +2357,7 @@
         .filter(item => !item.caseId && item.equipmentId)
         .map(item => {
           const equip = equipment.find(e => e.id === item.equipmentId);
-          return equip?.name || 'Unknown';
+          return equip || { name: 'Unknown' };
         });
 
       const handleSubmit = async () => {
@@ -2381,13 +2381,14 @@
               <button style={styles.button} onClick={() => setForm({ name: '', description: '' })}>+ New Case</button>
             </div>
 
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             {cases.map(caseItem => {
               const contents = getCaseContents(caseItem.id);
               const packingItem = checklist.find(item => item.caseId === caseItem.id && item.packingPhoto);
               const packingPhoto = packingItem?.packingPhoto || null;
 
               return (
-                <div key={caseItem.id} style={styles.card}>
+                <div key={caseItem.id} style={{ ...styles.card, margin: 0 }}>
                   <div style={{ marginBottom: '8px' }}>
                     <div style={{ fontWeight: '600', marginBottom: '4px' }}>{caseItem.name}</div>
                     {caseItem.description && (
@@ -2401,7 +2402,7 @@
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
                       {caseItem.exteriorPhoto && (
                         <div style={{ textAlign: 'center', position: 'relative' }}>
-                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                          <div style={{ width: '160px', height: '160px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
                             onClick={() => setPhotoViewer({ url: caseItem.exteriorPhoto, label: caseItem.name + ' — Exterior' })}>
                             <img src={caseItem.exteriorPhoto} alt="Exterior" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
                           </div>
@@ -2423,7 +2424,7 @@
                       )}
                       {packingPhoto && (
                         <div style={{ textAlign: 'center', position: 'relative' }}>
-                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                          <div style={{ width: '160px', height: '160px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
                             onClick={() => setPhotoViewer({ url: packingPhoto, label: caseItem.name + ' — Packing' })}>
                             <img src={packingPhoto} alt="Packing" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
                           </div>
@@ -2450,7 +2451,19 @@
                     <div style={{ fontSize: '12px', marginBottom: '12px' }}>
                       <div style={{ fontWeight: '500', marginBottom: '6px' }}>Contents ({contents.length}):</div>
                       {contents.map((item, idx) => (
-                        <div key={idx} style={{ color: '#D1D5DB' }}>✓ {item}</div>
+                        <div key={idx}
+                          style={{ color: '#D1D5DB', cursor: item.id ? 'pointer' : 'default', padding: '2px 0', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          onClick={() => item.id && onSelectEquipment && onSelectEquipment(item)}
+                          onMouseEnter={(e) => { if (item.id) e.currentTarget.style.color = '#F59E0B'; }}
+                          onMouseLeave={(e) => { if (item.id) e.currentTarget.style.color = '#D1D5DB'; }}
+                        >
+                          {item.photo ? (
+                            <img src={item.photo} alt="" style={{ width: '20px', height: '20px', borderRadius: '3px', objectFit: 'contain', backgroundColor: '#fff', flexShrink: 0 }} />
+                          ) : (
+                            <span style={{ width: '20px', textAlign: 'center', flexShrink: 0 }}>✓</span>
+                          )}
+                          {item.name}
+                        </div>
                       ))}
                     </div>
                   )}
@@ -2479,6 +2492,7 @@
                 </div>
               );
             })}
+            </div>
 
             {cases.length === 0 && (
               <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
@@ -2491,8 +2505,13 @@
             <div style={{ ...styles.section, borderLeft: '4px solid #EF4444' }}>
               <h3 style={{ ...styles.sectionTitle, marginTop: 0, color: '#EF4444' }}>⚠️ Unassigned Items ({unassignedItems.length})</h3>
               {unassignedItems.map((item, idx) => (
-                <div key={idx} style={{ padding: '8px', color: '#D1D5DB', fontSize: '13px' }}>
-                  {item}
+                <div key={idx}
+                  style={{ padding: '4px 8px', color: '#D1D5DB', fontSize: '13px', cursor: item.id ? 'pointer' : 'default' }}
+                  onClick={() => item.id && onSelectEquipment && onSelectEquipment(item)}
+                  onMouseEnter={(e) => { if (item.id) e.currentTarget.style.color = '#F59E0B'; }}
+                  onMouseLeave={(e) => { if (item.id) e.currentTarget.style.color = '#D1D5DB'; }}
+                >
+                  {item.name}
                 </div>
               ))}
             </div>
@@ -3352,6 +3371,7 @@
                 onSaveCase={handleCaseSave}
                 onDeleteCase={handleDeleteCase}
                 onRefresh={loadData}
+                onSelectEquipment={(eq) => setEquipmentDetail(eq)}
               />
             )}
 
