@@ -607,6 +607,10 @@
       return url;
     }
 
+    async function deleteAttachment(tableName, recordId, fieldName) {
+      await updateRecord(tableName, recordId, { [fieldName]: [] });
+    }
+
     // Transform functions
     const transformEquipment = (record) => ({
       id: record.id,
@@ -2379,7 +2383,8 @@
 
             {cases.map(caseItem => {
               const contents = getCaseContents(caseItem.id);
-              const packingPhoto = checklist.find(item => item.caseId === caseItem.id && item.packingPhoto)?.packingPhoto || null;
+              const packingItem = checklist.find(item => item.caseId === caseItem.id && item.packingPhoto);
+              const packingPhoto = packingItem?.packingPhoto || null;
 
               return (
                 <div key={caseItem.id} style={styles.card}>
@@ -2395,18 +2400,46 @@
                   {(caseItem.exteriorPhoto || packingPhoto) && (
                     <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
                       {caseItem.exteriorPhoto && (
-                        <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setPhotoViewer({ url: caseItem.exteriorPhoto, label: caseItem.name + ' — Exterior' })}>
-                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937' }}>
+                        <div style={{ textAlign: 'center', position: 'relative' }}>
+                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                            onClick={() => setPhotoViewer({ url: caseItem.exteriorPhoto, label: caseItem.name + ' — Exterior' })}>
                             <img src={caseItem.exteriorPhoto} alt="Exterior" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
                           </div>
+                          <button onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Remove exterior photo?')) return;
+                            try {
+                              await deleteAttachment('Cases', caseItem.id, 'Exterior Photo');
+                              if (onRefresh) await onRefresh();
+                            } catch (err) { alert('Delete failed: ' + err.message); }
+                          }} style={{
+                            position: 'absolute', top: '4px', right: '4px', width: '22px', height: '22px',
+                            borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', color: '#EF4444',
+                            border: '1px solid #EF4444', cursor: 'pointer', fontSize: '13px', lineHeight: '1',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }} title="Remove photo">×</button>
                           <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Exterior</div>
                         </div>
                       )}
                       {packingPhoto && (
-                        <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setPhotoViewer({ url: packingPhoto, label: caseItem.name + ' — Packing' })}>
-                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937' }}>
+                        <div style={{ textAlign: 'center', position: 'relative' }}>
+                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                            onClick={() => setPhotoViewer({ url: packingPhoto, label: caseItem.name + ' — Packing' })}>
                             <img src={packingPhoto} alt="Packing" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
                           </div>
+                          <button onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Remove packing photo?')) return;
+                            try {
+                              await deleteAttachment('ProductionChecklist', packingItem.id, 'Packing Photo');
+                              if (onRefresh) await onRefresh();
+                            } catch (err) { alert('Delete failed: ' + err.message); }
+                          }} style={{
+                            position: 'absolute', top: '4px', right: '4px', width: '22px', height: '22px',
+                            borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', color: '#EF4444',
+                            border: '1px solid #EF4444', cursor: 'pointer', fontSize: '13px', lineHeight: '1',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }} title="Remove photo">×</button>
                           <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Packing</div>
                         </div>
                       )}
