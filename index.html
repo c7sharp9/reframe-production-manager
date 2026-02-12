@@ -2366,9 +2366,9 @@
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button style={styles.buttonSecondary} onClick={() => setForm({ ...caseItem })}>Edit</button>
-                    <button style={styles.buttonDanger} onClick={() => onDeleteCase(caseItem.id)}>Delete</button>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button style={{ ...styles.buttonSecondary, padding: '4px 10px', fontSize: '11px' }} onClick={() => setForm({ ...caseItem })}>Edit</button>
+                    <button style={{ ...styles.buttonDanger, padding: '4px 10px', fontSize: '11px' }} onClick={() => onDeleteCase(caseItem.id)}>Delete</button>
                   </div>
                 </div>
               );
