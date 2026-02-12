@@ -1,7 +1,22 @@
-// Serves a file from Netlify Blobs by key
-// This gives Airtable a public URL to download from
+// Serves uploaded files from Netlify Blobs via raw HTTP (no npm deps)
+// Gives Airtable a public URL to download attachments from
 
-const { getStore } = require("@netlify/blobs");
+function getBlobsContext() {
+  const raw = process.env.NETLIFY_BLOBS_CONTEXT;
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) {}
+  try { return JSON.parse(Buffer.from(raw, "base64").toString()); } catch (e) {}
+  return null;
+}
+
+function blobUrl(ctx, storeName, key) {
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+  if (ctx.edgeURL) {
+    return `${ctx.edgeURL}/${ctx.siteID}:site:${storeName}/${encodedKey}`;
+  }
+  const api = ctx.apiURL || "https://api.netlify.com";
+  return `${api}/api/v1/blobs/${ctx.siteID}/site/${storeName}/${encodedKey}`;
+}
 
 exports.handler = async (event) => {
   const key = event.queryStringParameters?.key;
@@ -11,27 +26,48 @@ exports.handler = async (event) => {
   }
 
   try {
-    const store = getStore("uploads");
-    const blob = await store.get(key, { type: "arrayBuffer" });
+    const ctx = getBlobsContext();
+    if (!ctx) {
+      return { statusCode: 500, body: "Netlify Blobs context not available" };
+    }
 
-    if (!blob) {
+    const store = "uploads";
+
+    // Fetch the file binary
+    const fileUrl = blobUrl(ctx, store, key);
+    const fileRes = await fetch(fileUrl, {
+      headers: { "Authorization": `Bearer ${ctx.token}` }
+    });
+
+    if (!fileRes.ok) {
       return { statusCode: 404, body: "File not found" };
     }
 
-    const { metadata } = await store.getMetadata(key);
-    const contentType = metadata?.contentType || "application/octet-stream";
+    // Fetch metadata
+    const metaUrl = blobUrl(ctx, store, key + "__meta");
+    const metaRes = await fetch(metaUrl, {
+      headers: { "Authorization": `Bearer ${ctx.token}` }
+    });
+
+    let meta = { contentType: "application/octet-stream", filename: key };
+    if (metaRes.ok) {
+      try { meta = await metaRes.json(); } catch (e) {}
+    }
+
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
 
     return {
       statusCode: 200,
       headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="${metadata?.filename || key}"`,
-        "Cache-Control": "public, max-age=3600"
+        "Content-Type": meta.contentType,
+        "Content-Disposition": `inline; filename="${meta.filename}"`,
+        "Cache-Control": "public, max-age=3600",
+        "Access-Control-Allow-Origin": "*"
       },
-      body: Buffer.from(blob).toString("base64"),
+      body: buffer.toString("base64"),
       isBase64Encoded: true
     };
   } catch (err) {
-    return { statusCode: 500, body: "Error retrieving file: " + err.message };
+    return { statusCode: 500, body: "Error: " + err.message };
   }
 };

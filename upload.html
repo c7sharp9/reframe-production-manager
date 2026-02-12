@@ -367,7 +367,14 @@
             })
           });
 
-          if (!res.ok) throw new Error(`Failed to upload ${selectedFiles[i].name}`);
+          if (!res.ok) {
+            let errMsg = `Failed to upload ${selectedFiles[i].name}`;
+            try {
+              const errData = await res.json();
+              errMsg += ': ' + (errData.error || errData.detail || res.statusText);
+            } catch (e) {}
+            throw new Error(errMsg);
+          }
           const data = await res.json();
           uploadedUrls.push({ url: data.url, filename: selectedFiles[i].name });
         }

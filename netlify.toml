@@ -2,9 +2,6 @@
   publish = "."
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "nft"
-
 # Handle OPTIONS preflight for CORS
 [[headers]]
   for = "/.netlify/functions/*"
