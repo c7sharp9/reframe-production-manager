@@ -1558,7 +1558,10 @@
 
                         {/* Documents section */}
                         <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
-                          <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Documents</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documents</div>
+                            <a href="/upload.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#F59E0B'} onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}>+ Upload</a>
+                          </div>
                           {production.documents && production.documents.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                               {production.documents.map((doc, i) => (
@@ -1572,16 +1575,26 @@
                                   <span style={{ flex: 1, fontSize: '12px', color: '#E5E7EB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                     {doc.filename}
                                   </span>
-                                  <button
-                                    onClick={() => setDocViewer(doc)}
-                                    style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF' }}
-                                    onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
-                                    onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
-                                  >View</button>
+                                  {doc.type?.includes('image') ? (
+                                    <button
+                                      onClick={() => setDocViewer(doc)}
+                                      style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF' }}
+                                      onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                      onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                    >View</button>
+                                  ) : (
+                                    <a
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF', textDecoration: 'none' }}
+                                      onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                      onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                    >View</a>
+                                  )}
                                   <a
                                     href={doc.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                                    download
                                     style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '1px solid #374151', color: '#9CA3AF', textDecoration: 'none' }}
                                     onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
                                     onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
@@ -1620,8 +1633,8 @@
           {/* Document Viewer Modal */}
           {docViewer && (
             <div style={styles.overlay} onClick={() => setDocViewer(null)}>
-              <div style={{ ...styles.modal, maxWidth: '95vw', width: '95vw', maxHeight: '95vh', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', bottom: '16px', backgroundColor: '#1A1D23', borderRadius: '12px', border: '1px solid #2A2D35', display: 'flex', flexDirection: 'column', padding: '16px' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexShrink: 0 }}>
                   <h3 style={{ ...styles.sectionTitle, marginBottom: 0 }}>{docViewer.filename}</h3>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <a
@@ -1633,9 +1646,9 @@
                     <button style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '20px', cursor: 'pointer' }} onClick={() => setDocViewer(null)}>×</button>
                   </div>
                 </div>
-                <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px', backgroundColor: '#0D0F13' }}>
+                <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px', backgroundColor: '#0D0F13', minHeight: 0 }}>
                   {docViewer.type?.includes('pdf') ? (
-                    <iframe src={docViewer.url} style={{ width: '100%', height: '85vh', border: 'none', borderRadius: '8px' }} />
+                    <iframe src={docViewer.url} style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px', display: 'block' }} />
                   ) : docViewer.type?.includes('image') ? (
                     <img src={docViewer.url} style={{ maxWidth: '100%', borderRadius: '8px' }} />
                   ) : (
