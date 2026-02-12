@@ -535,7 +535,12 @@
         body: JSON.stringify({ fields })
       });
 
-      if (!response.ok) throw new Error(`Failed to update record in ${tableName}`);
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const detail = errData.error?.message || JSON.stringify(errData);
+        console.error('Airtable PATCH error:', detail, 'Fields sent:', JSON.stringify(fields));
+        throw new Error(`Failed to update record in ${tableName}: ${detail}`);
+      }
       const data = await response.json();
       return data;
     }
@@ -2796,29 +2801,28 @@
       const handleSaveProduction = async (form) => {
         const fields = {};
         if (form.name !== undefined) fields['Name'] = form.name.trim ? form.name.trim() : form.name;
-        if (form.code !== undefined) fields['Studio Code'] = form.code;
-        if (form.type !== undefined) fields['Type'] = form.type;
-        if (form.client !== undefined) fields['Client'] = form.client;
-        if (form.event !== undefined) fields['Event'] = form.event;
-        if (form.city !== undefined) fields['City'] = form.city;
-        if (form.venue !== undefined) fields['Venue'] = form.venue;
-        if (form.venueAddress !== undefined) fields['Venue Address'] = form.venueAddress;
-        if (form.startDate !== undefined) fields['Start Date'] = form.startDate;
-        if (form.endDate !== undefined) fields['End Date'] = form.endDate;
-        // Note: 'Date' field removed — use 'Start Date' instead
-        if (form.schedule !== undefined) fields['Load-in'] = form.schedule;
-        if (form.localContact !== undefined) fields['Local Contact'] = form.localContact;
-        if (form.cameraCount !== undefined) fields['Camera Count'] = form.cameraCount;
-        if (form.hotelName !== undefined) fields['Hotel Name'] = form.hotelName;
-        if (form.hotelAddress !== undefined) fields['Hotel Address'] = form.hotelAddress;
-        if (form.hotelConfirmation !== undefined) fields['Hotel Confirmation'] = form.hotelConfirmation;
-        if (form.shippingAddress !== undefined) fields['Shipping Address'] = form.shippingAddress;
-        if (form.shippingTracking !== undefined) fields['Shipping Tracking'] = form.shippingTracking;
-        if (form.shippingNotes !== undefined) fields['Shipping Notes'] = form.shippingNotes;
-        if (form.flights !== undefined) fields['Flights'] = form.flights;
-        if (form.crew !== undefined) fields['Crew'] = form.crew;
-        if (form.notes !== undefined) fields['Notes'] = form.notes;
-        if (form.cardFields !== undefined) fields['Card Display'] = form.cardFields;
+        if (form.code !== undefined) fields['Studio Code'] = form.code || '';
+        if (form.type !== undefined && form.type) fields['Type'] = form.type;
+        if (form.client !== undefined) fields['Client'] = form.client || '';
+        if (form.event !== undefined) fields['Event'] = form.event || '';
+        if (form.city !== undefined) fields['City'] = form.city || '';
+        if (form.venue !== undefined) fields['Venue'] = form.venue || '';
+        if (form.venueAddress !== undefined) fields['Venue Address'] = form.venueAddress || '';
+        if (form.startDate !== undefined) fields['Start Date'] = form.startDate || null;
+        if (form.endDate !== undefined) fields['End Date'] = form.endDate || null;
+        if (form.schedule !== undefined) fields['Load-in'] = form.schedule || '';
+        if (form.localContact !== undefined) fields['Local Contact'] = form.localContact || '';
+        if (form.cameraCount !== undefined && form.cameraCount) fields['Camera Count'] = form.cameraCount;
+        if (form.hotelName !== undefined) fields['Hotel Name'] = form.hotelName || '';
+        if (form.hotelAddress !== undefined) fields['Hotel Address'] = form.hotelAddress || '';
+        if (form.hotelConfirmation !== undefined) fields['Hotel Confirmation'] = form.hotelConfirmation || '';
+        if (form.shippingAddress !== undefined) fields['Shipping Address'] = form.shippingAddress || '';
+        if (form.shippingTracking !== undefined) fields['Shipping Tracking'] = form.shippingTracking || '';
+        if (form.shippingNotes !== undefined) fields['Shipping Notes'] = form.shippingNotes || '';
+        if (form.flights !== undefined) fields['Flights'] = form.flights || '';
+        if (form.crew !== undefined) fields['Crew'] = form.crew || '';
+        if (form.notes !== undefined) fields['Notes'] = form.notes || '';
+        if (form.cardFields !== undefined) fields['Card Display'] = form.cardFields || '';
         if (form.contactIds !== undefined) fields['Contacts'] = form.contactIds;
 
         await updateRecord(CONFIG.TABLES.studios, form.id, fields);
@@ -3412,4 +3416,5 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(ReFrameProductionManager));
   </script>
-</
+</body>
+</html>
