@@ -203,10 +203,10 @@
       },
       card: {
         backgroundColor: '#13151A',
-        borderRadius: '12px',
-        padding: '16px',
+        borderRadius: '10px',
+        padding: '10px',
         border: '1px solid #2A2D35',
-        marginBottom: '12px',
+        marginBottom: '8px',
         transition: 'all 0.3s',
         cursor: 'pointer'
       },
@@ -399,7 +399,7 @@
       },
       grid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
         gap: '16px'
       },
       collapsible: {
@@ -776,12 +776,12 @@
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
               <h2 style={{ marginTop: 0, color: '#F59E0B', flex: 1 }}>Equipment Details</h2>
               <div style={{
-                width: '120px', height: '120px', borderRadius: '8px', backgroundColor: '#0D0F13',
+                width: '120px', height: '120px', borderRadius: '8px', backgroundColor: '#FFFFFF',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
                 flexShrink: 0, marginLeft: '12px'
               }}>
                 {form.photo ? (
-                  <img src={form.photo} alt={form.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                  <img src={form.photo} alt={form.name} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
                 ) : (
                   <span style={{ fontSize: '32px', color: '#4B5563' }}>📷</span>
                 )}
@@ -2499,24 +2499,23 @@
                   onClick={() => onSelectEquipment(eq)}
                 >
                   <div style={{
-                    height: '120px',
-                    backgroundColor: '#0D0F13',
-                    borderRadius: '8px',
-                    marginBottom: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#6B7280'
+                    width: '100%',
+                    paddingBottom: '100%',
+                    position: 'relative',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '6px',
+                    marginBottom: '8px',
+                    overflow: 'hidden'
                   }}>
                     {eq.photo ? (
-                      <img src={eq.photo} alt={eq.name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '8px' }} />
+                      <img src={eq.photo} alt={eq.name} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }} />
                     ) : (
-                      '📷'
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0D0F13', color: '#6B7280' }}>📷</div>
                     )}
                   </div>
 
-                  <div style={{ fontWeight: '600', marginBottom: '6px' }}>{eq.name}</div>
-                  <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '8px' }}>
+                  <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>{eq.name}</div>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '6px' }}>
                     {eq.category}
                   </div>
 
