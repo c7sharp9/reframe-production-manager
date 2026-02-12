@@ -568,6 +568,45 @@
       return true;
     }
 
+    // Upload a file to an Airtable attachment field
+    // Uses the file-upload function for temporary hosting, then patches the record
+    async function uploadAttachment(tableName, recordId, fieldName, file) {
+      // Convert file to base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to temporary hosting
+      const uploadRes = await fetch('/.netlify/functions/file-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content: base64, contentType: file.type })
+      });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Upload failed');
+      }
+      const { url } = await uploadRes.json();
+
+      // Get current attachments on the record
+      const recRes = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}/${recordId}`);
+      if (!recRes.ok) throw new Error('Failed to fetch record');
+      const recData = await recRes.json();
+      const existing = recData.fields?.[fieldName] || [];
+
+      // Patch with old + new attachments
+      const allAttachments = [
+        ...existing.map(a => ({ url: a.url, filename: a.filename })),
+        { url, filename: file.name }
+      ];
+      await updateRecord(tableName, recordId, { [fieldName]: allAttachments });
+
+      return url;
+    }
+
     // Transform functions
     const transformEquipment = (record) => ({
       id: record.id,
@@ -1173,7 +1212,7 @@
       return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
     };
 
-    function TravelTab({ studios, contacts, activeProduction, onSetActive, onEdit, onDelete, onCreateNew, onSaveProduction }) {
+    function TravelTab({ studios, contacts, activeProduction, onSetActive, onEdit, onDelete, onCreateNew, onSaveProduction, onRefresh }) {
       const travelProductions = studios.filter(s => s.type === 'Travel' || s.type === 'travel');
       const [expandedId, setExpandedId] = React.useState(null);
       const [editingId, setEditingId] = React.useState(null);
@@ -1560,7 +1599,24 @@
                         <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documents</div>
-                            <a href="/upload.html" target="_blank" rel="noopener noreferrer" style={{ fontSize: '11px', color: '#6B7280', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#F59E0B'} onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}>+ Upload</a>
+                            <label style={{ fontSize: '11px', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#F59E0B'} onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}>
+                              + Upload
+                              <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style={{ display: 'none' }} onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const label = e.target.closest('label');
+                                const origText = label.childNodes[0].textContent;
+                                label.childNodes[0].textContent = 'Uploading...';
+                                try {
+                                  await uploadAttachment('Studios', production.id, 'Documents', file);
+                                  if (onRefresh) await onRefresh();
+                                } catch (err) {
+                                  alert('Upload failed: ' + err.message);
+                                }
+                                label.childNodes[0].textContent = origText;
+                                e.target.value = '';
+                              }} />
+                            </label>
                           </div>
                           {production.documents && production.documents.length > 0 ? (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -1604,7 +1660,7 @@
                             </div>
                           ) : (
                             <div style={{ fontSize: '12px', color: '#4B5563', fontStyle: 'italic' }}>
-                              Upload documents in Airtable — they'll appear here
+                              No documents yet — click + Upload above
                             </div>
                           )}
                         </div>
@@ -2279,7 +2335,7 @@
     }
 
     // Tab 3: Cases View
-    function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase }) {
+    function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase, onRefresh }) {
       const [form, setForm] = React.useState(null);
       const [saving, setSaving] = React.useState(false);
 
@@ -2366,9 +2422,26 @@
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     <button style={{ ...styles.buttonSecondary, padding: '4px 10px', fontSize: '11px' }} onClick={() => setForm({ ...caseItem })}>Edit</button>
                     <button style={{ ...styles.buttonDanger, padding: '4px 10px', fontSize: '11px' }} onClick={() => onDeleteCase(caseItem.id)}>Delete</button>
+                    <label style={{ ...styles.buttonSecondary, padding: '4px 10px', fontSize: '11px', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      📷 Photo
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const checklistItem = checklist.find(item => item.caseId === caseItem.id);
+                        if (!checklistItem) { alert('No checklist items linked to this case for the active production.'); return; }
+                        try {
+                          e.target.closest('label').textContent = 'Uploading...';
+                          await uploadAttachment('ProductionChecklist', checklistItem.id, 'Packing Photo', file);
+                          if (onRefresh) await onRefresh();
+                        } catch (err) {
+                          alert('Upload failed: ' + err.message);
+                        }
+                        e.target.value = '';
+                      }} />
+                    </label>
                   </div>
                 </div>
               );
@@ -3180,6 +3253,7 @@
                 onDelete={handleDeleteProduction}
                 onCreateNew={() => setProductionForm({})}
                 onSaveProduction={handleSaveProduction}
+                onRefresh={loadData}
               />
             )}
 
@@ -3220,6 +3294,7 @@
                 equipment={equipment}
                 onSaveCase={handleCaseSave}
                 onDeleteCase={handleDeleteCase}
+                onRefresh={loadData}
               />
             )}
 
