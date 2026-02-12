@@ -2338,6 +2338,7 @@
     function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase, onRefresh }) {
       const [form, setForm] = React.useState(null);
       const [saving, setSaving] = React.useState(false);
+      const [photoViewer, setPhotoViewer] = React.useState(null);
 
       const getCaseContents = (caseId) => {
         return checklist
@@ -2382,36 +2383,35 @@
 
               return (
                 <div key={caseItem.id} style={styles.card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: '600', marginBottom: '4px' }}>{caseItem.name}</div>
-                      {caseItem.description && (
-                        <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
-                          {caseItem.description}
-                        </div>
-                      )}
-                    </div>
-                    {(caseItem.exteriorPhoto || packingPhoto) && (
-                      <div style={{ display: 'flex', gap: '6px', flexShrink: 0, marginLeft: '12px' }}>
-                        {caseItem.exteriorPhoto && (
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13' }}>
-                              <img src={caseItem.exteriorPhoto} alt="Exterior" style={{ width: '100%', height: '100%', objectFit: 'cover' }} title="Exterior" />
-                            </div>
-                            <div style={{ fontSize: '9px', color: '#6B7280', marginTop: '2px' }}>Exterior</div>
-                          </div>
-                        )}
-                        {packingPhoto && (
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ width: '60px', height: '60px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13' }}>
-                              <img src={packingPhoto} alt="Packing" style={{ width: '100%', height: '100%', objectFit: 'cover' }} title="Packing layout for this production" />
-                            </div>
-                            <div style={{ fontSize: '9px', color: '#6B7280', marginTop: '2px' }}>Packing</div>
-                          </div>
-                        )}
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{caseItem.name}</div>
+                    {caseItem.description && (
+                      <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
+                        {caseItem.description}
                       </div>
                     )}
                   </div>
+
+                  {(caseItem.exteriorPhoto || packingPhoto) && (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                      {caseItem.exteriorPhoto && (
+                        <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setPhotoViewer({ url: caseItem.exteriorPhoto, label: caseItem.name + ' — Exterior' })}>
+                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937' }}>
+                            <img src={caseItem.exteriorPhoto} alt="Exterior" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Exterior</div>
+                        </div>
+                      )}
+                      {packingPhoto && (
+                        <div style={{ textAlign: 'center', cursor: 'pointer' }} onClick={() => setPhotoViewer({ url: packingPhoto, label: caseItem.name + ' — Packing' })}>
+                          <div style={{ width: '250px', height: '250px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937' }}>
+                            <img src={packingPhoto} alt="Packing" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
+                          </div>
+                          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Packing</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {contents.length > 0 && (
                     <div style={{ fontSize: '12px', marginBottom: '12px' }}>
@@ -2508,6 +2508,30 @@
                     {saving ? 'Saving...' : (form.id ? 'Update Case' : 'Create Case')}
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Photo Lightbox */}
+          {photoViewer && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 10000, cursor: 'pointer'
+            }} onClick={() => setPhotoViewer(null)}>
+              <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ color: '#E5E7EB', fontSize: '14px', fontWeight: '500' }}>{photoViewer.label}</div>
+                  <button
+                    onClick={() => setPhotoViewer(null)}
+                    style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '24px', cursor: 'pointer', padding: '0 4px' }}
+                  >×</button>
+                </div>
+                <img
+                  src={photoViewer.url}
+                  alt={photoViewer.label}
+                  style={{ maxWidth: '90vw', maxHeight: 'calc(90vh - 40px)', borderRadius: '8px', objectFit: 'contain' }}
+                />
               </div>
             </div>
           )}
