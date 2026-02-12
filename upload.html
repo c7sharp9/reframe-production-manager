@@ -124,16 +124,18 @@
 
     <!-- Table Picker -->
     <div class="field">
-      <label>Table</label>
+      <label>Upload To</label>
       <select id="tablePicker">
-        <option value="Studios" data-field="Documents">Studios / Productions</option>
+        <option value="Studios" data-field="Documents" data-label="Production">Studios / Productions — Documents</option>
+        <option value="Cases" data-field="Exterior Photo" data-label="Case">Cases — Exterior Photo</option>
+        <option value="ProductionChecklist" data-field="Packing Photo" data-label="Checklist Item">Checklist — Packing Photo</option>
       </select>
     </div>
 
     <!-- Record Picker -->
     <div class="field">
-      <label>Production</label>
-      <input type="text" id="recordSearch" placeholder="Search productions..." style="margin-bottom: 6px; display: none;">
+      <label id="recordLabel">Production</label>
+      <input type="text" id="recordSearch" placeholder="Search..." style="margin-bottom: 6px; display: none;">
       <select id="recordPicker">
         <option value="">Loading...</option>
       </select>
@@ -186,9 +188,18 @@
 
     // --- Load Records ---
     async function loadRecords() {
-      const table = document.getElementById('tablePicker').value;
+      const tablePicker = document.getElementById('tablePicker');
+      const selectedOption = tablePicker.selectedOptions[0];
+      const table = tablePicker.value;
+      const attachmentField = selectedOption.dataset.field;
+      const label = selectedOption.dataset.label || 'Record';
       const picker = document.getElementById('recordPicker');
       const search = document.getElementById('recordSearch');
+
+      // Update label
+      document.getElementById('recordLabel').textContent = label;
+      search.placeholder = `Search ${label.toLowerCase()}s...`;
+
       picker.innerHTML = '<option value="">Loading...</option>';
 
       try {
@@ -205,13 +216,22 @@
           offset = data.offset;
         }
 
-        records = allRecords.map(r => ({
-          id: r.id,
-          name: r.fields['Name'] || 'Unnamed',
-          documents: r.fields['Documents'] || []
-        })).sort((a, b) => a.name.localeCompare(b.name));
+        records = allRecords.map(r => {
+          // Build a display name depending on table type
+          let name = r.fields['Name'] || 'Unnamed';
+          // For ProductionChecklist, show the linked equipment name or a description
+          if (table === 'ProductionChecklist') {
+            const phase = r.fields['Phase'] || '';
+            name = `${name} — ${phase}`;
+          }
+          return {
+            id: r.id,
+            name: name,
+            documents: r.fields[attachmentField] || []
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
 
-        renderRecordPicker(records);
+        renderRecordPicker(records, label);
         search.style.display = 'block';
       } catch (err) {
         picker.innerHTML = '<option value="">Error loading records</option>';
@@ -219,9 +239,12 @@
       }
     }
 
-    function renderRecordPicker(list) {
+    // Reload records when table changes
+    document.getElementById('tablePicker').addEventListener('change', loadRecords);
+
+    function renderRecordPicker(list, label) {
       const picker = document.getElementById('recordPicker');
-      picker.innerHTML = '<option value="">Select a production...</option>';
+      picker.innerHTML = `<option value="">Select a ${(label || 'record').toLowerCase()}...</option>`;
       list.forEach(r => {
         const opt = document.createElement('option');
         opt.value = r.id;
