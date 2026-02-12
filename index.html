@@ -1035,7 +1035,7 @@
           if (form.venueAddress) fields['Venue Address'] = form.venueAddress;
           if (form.startDate) fields['Start Date'] = form.startDate;
           if (form.endDate) fields['End Date'] = form.endDate;
-          if (form.date) fields['Date'] = form.date;
+          // Note: 'Date' field removed — use 'Start Date' instead
           if (form.schedule) fields['Load-in'] = form.schedule;
           if (form.localContact) fields['Local Contact'] = form.localContact;
           if (form.cameraCount) fields['Camera Count'] = form.cameraCount;
@@ -2805,7 +2805,7 @@
         if (form.venueAddress !== undefined) fields['Venue Address'] = form.venueAddress;
         if (form.startDate !== undefined) fields['Start Date'] = form.startDate;
         if (form.endDate !== undefined) fields['End Date'] = form.endDate;
-        if (form.date !== undefined) fields['Date'] = form.date;
+        // Note: 'Date' field removed — use 'Start Date' instead
         if (form.schedule !== undefined) fields['Load-in'] = form.schedule;
         if (form.localContact !== undefined) fields['Local Contact'] = form.localContact;
         if (form.cameraCount !== undefined) fields['Camera Count'] = form.cameraCount;
@@ -3412,5 +3412,4 @@
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(React.createElement(ReFrameProductionManager));
   </script>
-</body>
-</html>
+</
