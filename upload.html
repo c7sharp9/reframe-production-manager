@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReFrame — Upload Documents</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0D0F13;
+      color: #E5E7EB;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+    .container { max-width: 560px; width: 100%; }
+    .header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 32px; padding-bottom: 20px;
+      border-bottom: 1px solid #2A2D35;
+    }
+    .logo {
+      width: 40px; height: 40px; border-radius: 8px;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 700; color: #fff;
+    }
+    .title { font-size: 18px; font-weight: 600; color: #F9FAFB; }
+    .subtitle { font-size: 11px; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; }
+    .back-link { display: inline-block; margin-bottom: 20px; color: #6B7280; text-decoration: none; font-size: 13px; }
+    .back-link:hover { color: #F59E0B; }
+
+    label { display: block; font-size: 11px; color: #9CA3AF; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 500; }
+    select, input[type="text"] {
+      width: 100%; padding: 10px 12px; font-size: 13px;
+      font-family: 'DM Sans', sans-serif;
+      background: #13151A; color: #E5E7EB;
+      border: 1px solid #2A2D35; border-radius: 8px;
+      -webkit-appearance: none; -moz-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7280'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px;
+      outline: none;
+    }
+    select option { background: #13151A; color: #E5E7EB; }
+    input[type="text"] { background-image: none; padding-right: 12px; }
+    select:focus, input[type="text"]:focus { border-color: #F59E0B44; }
+
+    .field { margin-bottom: 20px; }
+
+    .dropzone {
+      border: 2px dashed #2A2D35; border-radius: 8px;
+      padding: 32px; text-align: center; cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .dropzone:hover, .dropzone.dragover {
+      border-color: #F59E0B; background: #F59E0B08;
+    }
+    .dropzone-text { font-size: 14px; color: #6B7280; }
+    .dropzone-text strong { color: #F59E0B; }
+    .dropzone-sub { font-size: 11px; color: #4B5563; margin-top: 6px; }
+
+    .file-list { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
+    .file-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; background: #13151A;
+      border: 1px solid #1F2937; border-radius: 6px; font-size: 12px;
+    }
+    .file-icon { font-size: 16px; }
+    .file-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .file-size { color: #6B7280; font-size: 11px; }
+    .file-remove {
+      background: none; border: none; color: #4B5563; cursor: pointer; font-size: 16px; padding: 0 4px;
+    }
+    .file-remove:hover { color: #EF4444; }
+
+    .btn {
+      width: 100%; padding: 12px; font-size: 14px; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      color: #fff; border: none; border-radius: 8px; cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .progress-bar { margin-top: 16px; }
+    .progress-track {
+      height: 6px; background: #1F2937; border-radius: 3px; overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%; background: #F59E0B; border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+    .progress-text { font-size: 11px; color: #9CA3AF; margin-top: 6px; text-align: center; }
+
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      opacity: 0; transition: opacity 0.3s;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+    .toast.success { background: #065F46; color: #6EE7B7; border: 1px solid #10B981; }
+    .toast.error { background: #7F1D1D; color: #FCA5A5; border: 1px solid #EF4444; }
+
+    .existing-docs { margin-top: 24px; padding-top: 16px; border-top: 1px solid #1F2937; }
+    .existing-docs h3 { font-size: 11px; color: #F59E0B; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/" class="back-link">← Back to Production Manager</a>
+
+    <div class="header">
+      <div class="logo">R</div>
+      <div>
+        <div class="title">Upload Documents</div>
+        <div class="subtitle">Attach files to a production</div>
+      </div>
+    </div>
+
+    <!-- Table Picker -->
+    <div class="field">
+      <label>Upload To</label>
+      <select id="tablePicker">
+        <option value="Studios" data-field="Documents" data-label="Production">Studios / Productions — Documents</option>
+        <option value="Cases" data-field="Exterior Photo" data-label="Case">Cases — Exterior Photo</option>
+        <option value="ProductionChecklist" data-field="Packing Photo" data-label="Checklist Item">Checklist — Packing Photo</option>
+      </select>
+    </div>
+
+    <!-- Record Picker -->
+    <div class="field">
+      <label id="recordLabel">Production</label>
+      <input type="text" id="recordSearch" placeholder="Search..." style="margin-bottom: 6px; display: none;">
+      <select id="recordPicker">
+        <option value="">Loading...</option>
+      </select>
+    </div>
+
+    <!-- File Drop Zone -->
+    <div class="field">
+      <label>Files</label>
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone-text">Drop files here or <strong>click to browse</strong></div>
+        <div class="dropzone-sub">PDFs, images, and documents — max ~4.5 MB per file</div>
+      </div>
+      <input type="file" id="fileInput" multiple style="display: none;">
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <!-- Upload Button -->
+    <button class="btn" id="uploadBtn" disabled>Upload to Airtable</button>
+
+    <!-- Progress -->
+    <div class="progress-bar" id="progressBar" style="display: none;">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText">Uploading...</div>
+    </div>
+
+    <!-- Existing Documents -->
+    <div class="existing-docs" id="existingDocs" style="display: none;">
+      <h3>Current Attachments</h3>
+      <div class="file-list" id="existingList"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const PROXY = '/.netlify/functions/airtable';
+    const UPLOAD_FN = '/.netlify/functions/file-upload';
+
+    let records = [];
+    let selectedFiles = [];
+
+    // --- Toast ---
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast show ${type}`;
+      setTimeout(() => t.className = 'toast', 3500);
+    }
+
+    // --- Load Records ---
+    async function loadRecords() {
+      const tablePicker = document.getElementById('tablePicker');
+      const selectedOption = tablePicker.selectedOptions[0];
+      const table = tablePicker.value;
+      const attachmentField = selectedOption.dataset.field;
+      const label = selectedOption.dataset.label || 'Record';
+      const picker = document.getElementById('recordPicker');
+      const search = document.getElementById('recordSearch');
+
+      // Update label
+      document.getElementById('recordLabel').textContent = label;
+      search.placeholder = `Search ${label.toLowerCase()}s...`;
+
+      picker.innerHTML = '<option value="">Loading...</option>';
+
+      try {
+        let allRecords = [];
+        let offset = null;
+        while (true) {
+          let url = `${PROXY}?path=${encodeURIComponent(table)}`;
+          if (offset) url += `&offset=${encodeURIComponent(offset)}`;
+          const res = await fetch(url);
+          if (!res.ok) throw new Error('Failed to fetch records');
+          const data = await res.json();
+          allRecords = allRecords.concat(data.records || []);
+          if (!data.offset) break;
+          offset = data.offset;
+        }
+
+        records = allRecords.map(r => {
+          // Build a display name depending on table type
+          let name = r.fields['Name'] || 'Unnamed';
+          // For ProductionChecklist, show the linked equipment name or a description
+          if (table === 'ProductionChecklist') {
+            const phase = r.fields['Phase'] || '';
+            name = `${name} — ${phase}`;
+          }
+          return {
+            id: r.id,
+            name: name,
+            documents: r.fields[attachmentField] || []
+          };
+        }).sort((a, b) => a.name.localeCompare(b.name));
+
+        renderRecordPicker(records, label);
+        search.style.display = 'block';
+      } catch (err) {
+        picker.innerHTML = '<option value="">Error loading records</option>';
+        showToast('Failed to load records: ' + err.message, 'error');
+      }
+    }
+
+    // Reload records when table changes
+    document.getElementById('tablePicker').addEventListener('change', loadRecords);
+
+    function renderRecordPicker(list, label) {
+      const picker = document.getElementById('recordPicker');
+      picker.innerHTML = `<option value="">Select a ${(label || 'record').toLowerCase()}...</option>`;
+      list.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name;
+        picker.appendChild(opt);
+      });
+    }
+
+    // --- Search Filter ---
+    document.getElementById('recordSearch').addEventListener('input', (e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = q ? records.filter(r => r.name.toLowerCase().includes(q)) : records;
+      renderRecordPicker(filtered);
+    });
+
+    // --- Record Selection: Show Existing Docs ---
+    document.getElementById('recordPicker').addEventListener('change', () => {
+      const id = document.getElementById('recordPicker').value;
+      const docsDiv = document.getElementById('existingDocs');
+      const listDiv = document.getElementById('existingList');
+      updateUploadBtn();
+
+      if (!id) { docsDiv.style.display = 'none'; return; }
+
+      const record = records.find(r => r.id === id);
+      if (!record || !record.documents.length) {
+        docsDiv.style.display = 'none';
+        return;
+      }
+
+      listDiv.innerHTML = '';
+      record.documents.forEach(doc => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        const icon = doc.type?.includes('pdf') ? '📄' : doc.type?.includes('image') ? '🖼' : '📎';
+        div.innerHTML = `
+          <span class="file-icon">${icon}</span>
+          <span class="file-name">${doc.filename}</span>
+          <span class="file-size">${formatSize(doc.size)}</span>
+        `;
+        listDiv.appendChild(div);
+      });
+      docsDiv.style.display = 'block';
+    });
+
+    // --- File Handling ---
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      addFiles(e.dataTransfer.files);
+    });
+    fileInput.addEventListener('change', () => { addFiles(fileInput.files); fileInput.value = ''; });
+
+    function addFiles(fileList) {
+      for (const f of fileList) {
+        if (f.size > 4.5 * 1024 * 1024) {
+          showToast(`${f.name} is too large (max ~4.5 MB)`, 'error');
+          continue;
+        }
+        if (!selectedFiles.find(sf => sf.name === f.name && sf.size === f.size)) {
+          selectedFiles.push(f);
+        }
+      }
+      renderFileList();
+      updateUploadBtn();
+    }
+
+    function removeFile(index) {
+      selectedFiles.splice(index, 1);
+      renderFileList();
+      updateUploadBtn();
+    }
+
+    function renderFileList() {
+      const list = document.getElementById('fileList');
+      list.innerHTML = '';
+      selectedFiles.forEach((f, i) => {
+        const div = document.createElement('div');
+        div.className = 'file-item';
+        const icon = f.type.includes('pdf') ? '📄' : f.type.includes('image') ? '🖼' : '📎';
+        div.innerHTML = `
+          <span class="file-icon">${icon}</span>
+          <span class="file-name">${f.name}</span>
+          <span class="file-size">${formatSize(f.size)}</span>
+        `;
+        const btn = document.createElement('button');
+        btn.className = 'file-remove';
+        btn.textContent = '×';
+        btn.onclick = () => removeFile(i);
+        div.appendChild(btn);
+        list.appendChild(div);
+      });
+    }
+
+    function updateUploadBtn() {
+      const btn = document.getElementById('uploadBtn');
+      const hasRecord = !!document.getElementById('recordPicker').value;
+      const hasFiles = selectedFiles.length > 0;
+      btn.disabled = !hasRecord || !hasFiles;
+      btn.textContent = hasFiles ? `Upload ${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} to Airtable` : 'Upload to Airtable';
+    }
+
+    // --- Upload ---
+    document.getElementById('uploadBtn').addEventListener('click', handleUpload);
+
+    async function handleUpload() {
+      const recordId = document.getElementById('recordPicker').value;
+      const table = document.getElementById('tablePicker').value;
+      const attachmentField = document.getElementById('tablePicker').selectedOptions[0].dataset.field;
+
+      if (!recordId || !selectedFiles.length) return;
+
+      const btn = document.getElementById('uploadBtn');
+      const bar = document.getElementById('progressBar');
+      const fill = document.getElementById('progressFill');
+      const text = document.getElementById('progressText');
+
+      btn.disabled = true;
+      bar.style.display = 'block';
+      fill.style.width = '0%';
+
+      try {
+        // Step 1: Upload each file to Netlify Blobs, get public URLs
+        const uploadedUrls = [];
+        for (let i = 0; i < selectedFiles.length; i++) {
+          text.textContent = `Uploading ${selectedFiles[i].name}... (${i + 1}/${selectedFiles.length})`;
+          fill.style.width = `${((i) / (selectedFiles.length + 1)) * 100}%`;
+
+          const base64 = await fileToBase64(selectedFiles[i]);
+          const res = await fetch(UPLOAD_FN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              filename: selectedFiles[i].name,
+              content: base64,
+              contentType: selectedFiles[i].type
+            })
+          });
+
+          if (!res.ok) {
+            let errMsg = `Failed to upload ${selectedFiles[i].name}`;
+            try {
+              const errData = await res.json();
+              errMsg += ': ' + (errData.error || errData.detail || res.statusText);
+            } catch (e) {}
+            throw new Error(errMsg);
+          }
+          const data = await res.json();
+          uploadedUrls.push({ url: data.url, filename: selectedFiles[i].name });
+        }
+
+        // Step 2: GET current attachments from the record
+        text.textContent = 'Updating Airtable record...';
+        fill.style.width = `${(selectedFiles.length / (selectedFiles.length + 1)) * 100}%`;
+
+        const recRes = await fetch(`${PROXY}?path=${encodeURIComponent(table)}/${recordId}`);
+        if (!recRes.ok) throw new Error('Failed to fetch current record');
+        const recData = await recRes.json();
+        const existing = recData.fields?.[attachmentField] || [];
+
+        // Step 3: PATCH with old + new attachments
+        const allAttachments = [
+          ...existing.map(a => ({ url: a.url, filename: a.filename })),
+          ...uploadedUrls
+        ];
+
+        const patchRes = await fetch(`${PROXY}?path=${encodeURIComponent(table)}/${recordId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { [attachmentField]: allAttachments } })
+        });
+
+        if (!patchRes.ok) throw new Error('Failed to update Airtable record');
+
+        // Done
+        fill.style.width = '100%';
+        text.textContent = 'Done!';
+        showToast(`${selectedFiles.length} file${selectedFiles.length > 1 ? 's' : ''} uploaded successfully`);
+
+        // Reset
+        selectedFiles = [];
+        renderFileList();
+        updateUploadBtn();
+
+        // Refresh record data to show new attachments
+        await loadRecords();
+        document.getElementById('recordPicker').value = recordId;
+        document.getElementById('recordPicker').dispatchEvent(new Event('change'));
+
+        setTimeout(() => { bar.style.display = 'none'; }, 2000);
+
+      } catch (err) {
+        showToast('Upload failed: ' + err.message, 'error');
+        text.textContent = 'Upload failed';
+        fill.style.width = '0%';
+        btn.disabled = false;
+      }
+    }
+
+    // --- Helpers ---
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function formatSize(bytes) {
+      if (!bytes) return '';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // --- Init ---
+    loadRecords();
+  </script>
+</body>
+</html>

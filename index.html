@@ -1,0 +1,3362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ReFrame Production Manager</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- React 18, ReactDOM 18, and Babel Standalone from CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin:0; padding:0; background:#0D0F13;">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const CONFIG = {
+      PROXY: '/.netlify/functions/airtable',
+      TABLES: {
+        equipment: 'Equipment',
+        studios: 'Studios',
+        studioEquipment: 'StudioEquipment',
+        cases: 'Cases',
+        productionChecklist: 'ProductionChecklist',
+        contacts: 'Contacts'
+      }
+    };
+
+    const CATEGORIES = [
+      { id: 'mission', name: 'Mission Critical', icon: '🔥' },
+      { id: 'video', name: 'Video System', icon: '🎥' },
+      { id: 'switching', name: 'Switching + Recording', icon: '🎛' },
+      { id: 'hdmi', name: 'Cables — HDMI', icon: '🔌' },
+      { id: 'sdi', name: 'Cables — SDI', icon: '🔌' },
+      { id: 'audio_cables', name: 'Cables — Audio', icon: '🔌' },
+      { id: 'lighting', name: 'Lighting', icon: '💡' },
+      { id: 'stands', name: 'Stands & Supports', icon: '🗼' },
+      { id: 'furniture', name: 'Set + Furniture', icon: '🟩' },
+      { id: 'power', name: 'Power Distribution', icon: '⚡' },
+      { id: 'audio', name: 'Audio', icon: '🎙' },
+      { id: 'crew', name: 'Crew Kit', icon: '🧰' },
+      { id: 'networking', name: 'Networking', icon: '🌐' },
+      { id: 'stage', name: 'Stage Readiness', icon: '🧹' }
+    ];
+
+    const SOURCE_DEFAULTS = ['Owned', 'LensRentals', 'Local Gaffer', 'Amazon'];
+
+    const styles = {
+      body: {
+        fontFamily: "'DM Sans', sans-serif",
+        backgroundColor: '#0D0F13',
+        color: '#E5E7EB',
+        margin: 0,
+        padding: 0,
+        minHeight: '100vh'
+      },
+      container: {
+        maxWidth: '1400px',
+        margin: '0 auto',
+        padding: '20px'
+      },
+      header: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingBottom: '20px',
+        marginBottom: '20px',
+        borderBottom: '1px solid #2A2D35'
+      },
+      logo: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      },
+      logoSquare: {
+        width: '40px',
+        height: '40px',
+        borderRadius: '8px',
+        background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '22px',
+        fontWeight: '700',
+        color: '#fff'
+      },
+      logoText: {
+        display: 'flex',
+        flexDirection: 'column'
+      },
+      logoTitle: {
+        fontSize: '18px',
+        fontWeight: '700',
+        color: '#F59E0B',
+        margin: 0
+      },
+      logoSubtitle: {
+        fontSize: '11px',
+        fontWeight: '500',
+        color: '#9CA3AF',
+        margin: 0,
+        letterSpacing: '2px'
+      },
+      headerRight: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '20px',
+        fontFamily: "'JetBrains Mono', monospace"
+      },
+      productionInfo: {
+        textAlign: 'right'
+      },
+      productionName: {
+        fontSize: '14px',
+        fontWeight: '600',
+        color: '#F59E0B'
+      },
+      productionDate: {
+        fontSize: '12px',
+        color: '#9CA3AF'
+      },
+      syncStatus: {
+        fontSize: '11px',
+        color: '#9CA3AF',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      },
+      refreshButton: {
+        backgroundColor: 'transparent',
+        border: '1px solid #F59E0B',
+        color: '#F59E0B',
+        padding: '6px 12px',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '12px',
+        fontWeight: '500',
+        transition: 'all 0.3s'
+      },
+      tabs: {
+        display: 'flex',
+        gap: '8px',
+        marginBottom: '20px',
+        borderBottom: '1px solid #2A2D35',
+        paddingBottom: '0px'
+      },
+      tab: {
+        padding: '12px 20px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        color: '#9CA3AF',
+        fontSize: '14px',
+        fontWeight: '500',
+        cursor: 'pointer',
+        borderBottom: '2px solid transparent',
+        transition: 'all 0.3s'
+      },
+      tabActive: {
+        color: '#F59E0B',
+        borderBottomColor: '#F59E0B'
+      },
+      section: {
+        backgroundColor: '#1A1D25',
+        borderRadius: '12px',
+        padding: '20px',
+        marginBottom: '16px',
+        border: '1px solid #2A2D35'
+      },
+      sectionTitle: {
+        fontSize: '16px',
+        fontWeight: '600',
+        marginTop: 0,
+        marginBottom: '16px',
+        color: '#F59E0B',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      },
+      sectionSubtitle: {
+        fontSize: '12px',
+        fontWeight: '400',
+        color: '#9CA3AF',
+        marginBottom: '12px'
+      },
+      contextIndicator: {
+        fontSize: '13px',
+        color: '#9CA3AF',
+        marginBottom: '16px',
+        display: 'flex',
+        gap: '4px'
+      },
+      card: {
+        backgroundColor: '#13151A',
+        borderRadius: '10px',
+        padding: '10px',
+        border: '1px solid #2A2D35',
+        marginBottom: '8px',
+        transition: 'all 0.3s',
+        cursor: 'pointer'
+      },
+      cardActive: {
+        borderColor: '#F59E0B',
+        boxShadow: '0 0 20px rgba(245, 158, 11, 0.2)'
+      },
+      button: {
+        backgroundColor: '#F59E0B',
+        color: '#000',
+        padding: '10px 16px',
+        borderRadius: '6px',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600',
+        transition: 'all 0.3s'
+      },
+      buttonPrimary: {
+        backgroundColor: '#F59E0B',
+        color: '#000',
+        padding: '10px 16px',
+        borderRadius: '6px',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600',
+        transition: 'all 0.3s'
+      },
+      buttonSecondary: {
+        backgroundColor: '#2A2D35',
+        color: '#E5E7EB',
+        padding: '10px 16px',
+        borderRadius: '6px',
+        border: '1px solid #2A2D35',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '500',
+        transition: 'all 0.3s'
+      },
+      buttonDanger: {
+        backgroundColor: '#EF4444',
+        color: '#fff',
+        padding: '10px 16px',
+        borderRadius: '6px',
+        border: 'none',
+        cursor: 'pointer',
+        fontSize: '13px',
+        fontWeight: '600'
+      },
+      input: {
+        backgroundColor: '#13151A',
+        border: '1px solid #2A2D35',
+        borderRadius: '8px',
+        padding: '10px 12px',
+        color: '#E5E7EB',
+        fontSize: '13px',
+        fontFamily: "'DM Sans', sans-serif",
+        width: '100%',
+        boxSizing: 'border-box'
+      },
+      label: {
+        display: 'block',
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#9CA3AF',
+        marginBottom: '6px',
+        fontFamily: "'JetBrains Mono', monospace",
+        textTransform: 'uppercase',
+        letterSpacing: '0.5px'
+      },
+      formGroup: {
+        marginBottom: '16px'
+      },
+      progressBar: {
+        height: '8px',
+        backgroundColor: '#2A2D35',
+        borderRadius: '4px',
+        overflow: 'hidden',
+        marginBottom: '8px'
+      },
+      progressFill: {
+        height: '100%',
+        backgroundColor: '#10B981',
+        transition: 'width 0.3s'
+      },
+      badge: {
+        display: 'inline-block',
+        backgroundColor: '#F59E0B',
+        color: '#000',
+        padding: '2px 8px',
+        borderRadius: '4px',
+        fontSize: '11px',
+        fontWeight: '600',
+        marginRight: '6px'
+      },
+      badgeGreen: {
+        backgroundColor: '#10B981',
+        color: '#fff'
+      },
+      badgeGold: {
+        backgroundColor: '#FCD34D',
+        color: '#000'
+      },
+      checkbox: {
+        width: '18px',
+        height: '18px',
+        cursor: 'pointer',
+        accentColor: '#F59E0B'
+      },
+      loading: {
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '400px',
+        gap: '16px'
+      },
+      spinner: {
+        width: '40px',
+        height: '40px',
+        border: '3px solid #2A2D35',
+        borderTop: '3px solid #F59E0B',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+      },
+      error: {
+        backgroundColor: '#1F2937',
+        borderLeft: '4px solid #EF4444',
+        padding: '16px',
+        borderRadius: '8px',
+        marginBottom: '16px'
+      },
+      errorTitle: {
+        color: '#EF4444',
+        fontWeight: '600',
+        marginBottom: '8px'
+      },
+      toast: {
+        position: 'fixed',
+        bottom: '20px',
+        right: '20px',
+        backgroundColor: '#2A2D35',
+        color: '#E5E7EB',
+        padding: '16px 20px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        zIndex: 1000,
+        border: '1px solid #F59E0B'
+      },
+      toastSuccess: {
+        borderColor: '#10B981'
+      },
+      toastError: {
+        borderColor: '#EF4444'
+      },
+      overlay: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999
+      },
+      modal: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999
+      },
+      modalContent: {
+        backgroundColor: '#13151A',
+        borderRadius: '12px',
+        padding: '24px',
+        maxWidth: '500px',
+        width: '90%',
+        maxHeight: '80vh',
+        overflowY: 'auto',
+        border: '1px solid #2A2D35'
+      },
+      grid: {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+        gap: '16px'
+      },
+      collapsible: {
+        borderTop: '1px solid #2A2D35'
+      },
+      collapsibleHeader: {
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: '12px 0',
+        cursor: 'pointer',
+        fontWeight: '600',
+        color: '#E5E7EB'
+      },
+      checklistItem: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        padding: '8px 10px',
+        backgroundColor: '#0D0F13',
+        borderRadius: '8px',
+        marginBottom: '8px'
+      },
+      checklistItemName: {
+        flex: 1,
+        fontSize: '12px'
+      },
+      checklistControls: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px'
+      },
+      compactSelect: {
+        width: '110px',
+        fontSize: '11px',
+        padding: '4px 6px',
+        backgroundColor: '#13151A',
+        border: '1px solid #2A2D35',
+        borderRadius: '6px',
+        color: '#E5E7EB',
+        fontFamily: "'DM Sans', sans-serif",
+        cursor: 'pointer'
+      },
+      compactInput: {
+        width: '24px',
+        fontSize: '11px',
+        padding: '3px 1px',
+        backgroundColor: '#13151A',
+        border: '1px solid #2A2D35',
+        borderRadius: '4px',
+        color: '#9CA3AF',
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: 'center',
+        opacity: 0.7,
+        MozAppearance: 'textfield'
+      },
+      compactInputSpares: {
+        width: '24px',
+        fontSize: '11px',
+        padding: '3px 1px',
+        backgroundColor: '#13151A',
+        border: '1px solid #2A2D35',
+        borderRadius: '4px',
+        color: '#9CA3AF',
+        fontFamily: "'DM Sans', sans-serif",
+        textAlign: 'center',
+        opacity: 0.7,
+        MozAppearance: 'textfield'
+      },
+      qtyTotal: {
+        fontSize: '12px',
+        fontWeight: '600',
+        color: '#E5E7EB',
+        minWidth: '18px',
+        textAlign: 'center'
+      },
+      categoryWrapper: {
+        paddingLeft: '12px',
+        marginBottom: '12px',
+        borderRadius: '8px'
+      }
+    };
+
+    // API helpers — all requests go through Netlify serverless proxy
+    // API key is stored in Netlify env vars, never exposed to browser
+    async function fetchTable(tableName) {
+      let allRecords = [];
+      let offset = null;
+
+      while (true) {
+        let url = `${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}`;
+        if (offset) url += `&offset=${encodeURIComponent(offset)}`;
+
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch ${tableName}`);
+
+        const data = await response.json();
+        allRecords = allRecords.concat(data.records || []);
+        offset = data.offset;
+
+        if (!offset) break;
+      }
+
+      return allRecords;
+    }
+
+    async function createRecord(tableName, fields) {
+      const response = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ records: [{ fields }] })
+      });
+
+      if (!response.ok) throw new Error(`Failed to create record in ${tableName}`);
+      const data = await response.json();
+      return data.records[0];
+    }
+
+    async function updateRecord(tableName, recordId, fields) {
+      const response = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}/${recordId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const detail = errData.error?.message || JSON.stringify(errData);
+        console.error('Airtable PATCH error:', detail, 'Fields sent:', JSON.stringify(fields));
+        throw new Error(`Failed to update record in ${tableName}: ${detail}`);
+      }
+      const data = await response.json();
+      return data;
+    }
+
+    async function batchUpdateRecords(tableName, updates) {
+      const batches = [];
+      for (let i = 0; i < updates.length; i += 10) {
+        batches.push(updates.slice(i, i + 10));
+      }
+
+      for (const batch of batches) {
+        const response = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            records: batch.map(u => ({ id: u.id, fields: u.fields }))
+          })
+        });
+
+        if (!response.ok) throw new Error(`Batch update failed for ${tableName}`);
+      }
+    }
+
+    async function deleteRecord(tableName, recordId) {
+      const response = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}/${recordId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error(`Failed to delete record in ${tableName}`);
+      return true;
+    }
+
+    // Upload a file to an Airtable attachment field
+    // Uses the file-upload function for temporary hosting, then patches the record
+    async function uploadAttachment(tableName, recordId, fieldName, file) {
+      // Convert file to base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result.split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      // Upload to temporary hosting
+      const uploadRes = await fetch('/.netlify/functions/file-upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, content: base64, contentType: file.type })
+      });
+      if (!uploadRes.ok) {
+        const err = await uploadRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Upload failed');
+      }
+      const { url } = await uploadRes.json();
+
+      // Get current attachments on the record
+      const recRes = await fetch(`${CONFIG.PROXY}?path=${encodeURIComponent(tableName)}/${recordId}`);
+      if (!recRes.ok) throw new Error('Failed to fetch record');
+      const recData = await recRes.json();
+      const existing = recData.fields?.[fieldName] || [];
+
+      // Patch with old + new attachments
+      const allAttachments = [
+        ...existing.map(a => ({ url: a.url, filename: a.filename })),
+        { url, filename: file.name }
+      ];
+      await updateRecord(tableName, recordId, { [fieldName]: allAttachments });
+
+      return url;
+    }
+
+    async function deleteAttachment(tableName, recordId, fieldName) {
+      await updateRecord(tableName, recordId, { [fieldName]: [] });
+    }
+
+    // Transform functions
+    const transformEquipment = (record) => ({
+      id: record.id,
+      name: record.fields['Name'] || '',
+      fullName: record.fields['Full Name'] || '',
+      category: record.fields['Category']?.name || record.fields['Category'] || '',
+      subcategory: record.fields['Subcategory']?.name || record.fields['Subcategory'] || '',
+      productUrl: record.fields['Product URL'] || '',
+      unitCost: record.fields['Unit Cost'] || 0,
+      defaultQty: record.fields['Default Quantity'] || 1,
+      spareCount: record.fields['Spare Count'] || 0,
+      travelKit: record.fields['Travel Kit'] || false,
+      permanentInstall: record.fields['Permanent Install'] || false,
+      alternate: record.fields['Alternate'] || false,
+      generalized: record.fields['Generalized'] || false,
+      photo: record.fields['Photo']?.[0]?.url || null,
+      notes: record.fields['Notes'] || '',
+      qty2CamStudio: record.fields['Qty 2-Cam Studio'] ?? 0,
+      qty3CamStudio: record.fields['Qty 3-Cam Studio'] ?? 0,
+      qty2CamTravel: record.fields['Qty 2-Cam Travel'] ?? 0,
+      qty3CamTravel: record.fields['Qty 3-Cam Travel'] ?? 0,
+    });
+
+    const transformStudio = (record) => ({
+      id: record.id,
+      name: record.fields['Name'] || '',
+      code: record.fields['Studio Code'] || '',
+      type: record.fields['Type']?.name || record.fields['Type'] || '',
+      client: record.fields['Client'] || '',
+      event: record.fields['Event'] || '',
+      city: record.fields['City'] || '',
+      venue: record.fields['Venue'] || '',
+      venueAddress: record.fields['Venue Address'] || '',
+      startDate: record.fields['Start Date'] || record.fields['Date'] || '',
+      endDate: record.fields['End Date'] || '',
+      schedule: record.fields['Load-in'] || '',
+      localContact: record.fields['Local Contact'] || '',
+      hotelName: record.fields['Hotel Name'] || '',
+      hotelAddress: record.fields['Hotel Address'] || '',
+      hotelConfirmation: record.fields['Hotel Confirmation'] || '',
+      shippingAddress: record.fields['Shipping Address'] || '',
+      shippingTracking: record.fields['Shipping Tracking'] || '',
+      shippingNotes: record.fields['Shipping Notes'] || '',
+      flights: record.fields['Flights'] || '',
+      crew: record.fields['Crew'] || '',
+      notes: record.fields['Notes'] || '',
+      active: record.fields['Active'] || false,
+      cameraCount: record.fields['Camera Count']?.name || record.fields['Camera Count'] || '2',
+      cardFields: record.fields['Card Display'] || '',
+      documents: record.fields['Documents'] || [],
+      contactIds: record.fields['Contacts'] || [],
+    });
+
+    const transformContact = (record) => ({
+      id: record.id,
+      name: record.fields['Name'] || '',
+      business: record.fields['Business'] || '',
+      phone: record.fields['Phone'] || '',
+      email: record.fields['Email'] || '',
+      role: record.fields['Role/Title'] || '',
+      notes: record.fields['Notes'] || '',
+    });
+
+    const transformChecklist = (record) => ({
+      id: record.id,
+      equipmentId: record.fields['Equipment']?.[0] || null,
+      studioId: record.fields['Studio']?.[0] || null,
+      phase: record.fields['Phase'] || 'Outbound',
+      checked: record.fields['Checked'] || false,
+      source: record.fields['Source']?.name || record.fields['Source'] || '',
+      onItsWay: record.fields['On Its Way'] || false,
+      caseId: record.fields['Case']?.[0] || null,
+      qty: record.fields['Quantity'] || 1,
+      spareCount: record.fields['Spare Count'] || 0,
+      packingPhoto: record.fields['Packing Photo']?.[0]?.url || null,
+      notes: record.fields['Notes'] || '',
+    });
+
+    const transformCase = (record) => ({
+      id: record.id,
+      name: record.fields['Name'] || '',
+      description: record.fields['Description'] || '',
+      exteriorPhoto: record.fields['Exterior Photo']?.[0]?.url || null,
+      interiorPhoto: record.fields['Interior Photo']?.[0]?.url || null,
+    });
+
+    // Editable Select — allows adding new options inline
+    function EditableSelect({ value, onChange, onAddNew, options, placeholder, style }) {
+      const [isAdding, setIsAdding] = React.useState(false);
+      const [newValue, setNewValue] = React.useState('');
+      const didSubmit = React.useRef(false);
+
+      if (isAdding) {
+        return (
+          <input
+            type="text"
+            autoFocus
+            style={{ ...style, cursor: 'text' }}
+            value={newValue}
+            placeholder="Type & Enter"
+            onChange={(e) => setNewValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newValue.trim()) {
+                didSubmit.current = true;
+                if (onAddNew) onAddNew(newValue.trim());
+                else onChange(newValue.trim());
+                setIsAdding(false);
+                setNewValue('');
+              }
+              if (e.key === 'Escape') {
+                didSubmit.current = true;
+                setIsAdding(false);
+                setNewValue('');
+              }
+            }}
+            onBlur={() => {
+              if (!didSubmit.current && newValue.trim()) {
+                if (onAddNew) onAddNew(newValue.trim());
+                else onChange(newValue.trim());
+              }
+              didSubmit.current = false;
+              setIsAdding(false);
+              setNewValue('');
+            }}
+          />
+        );
+      }
+
+      return (
+        <select
+          style={style}
+          value={value || ''}
+          onChange={(e) => {
+            if (e.target.value === '__add_new__') {
+              setIsAdding(true);
+            } else {
+              onChange(e.target.value);
+            }
+          }}
+        >
+          <option value="">{placeholder}</option>
+          {options.map(opt => (
+            <option
+              key={typeof opt === 'object' ? opt.value : opt}
+              value={typeof opt === 'object' ? opt.value : opt}
+            >
+              {typeof opt === 'object' ? opt.label : opt}
+            </option>
+          ))}
+          <option value="__add_new__">+ Add New...</option>
+        </select>
+      );
+    }
+
+    // Toast Component
+    function Toast({ message, type = 'info', onClose }) {
+      React.useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+
+      const toastStyle = {
+        ...styles.toast,
+        ...(type === 'success' && styles.toastSuccess),
+        ...(type === 'error' && styles.toastError)
+      };
+
+      return <div style={toastStyle}>{message}</div>;
+    }
+
+    // Equipment Detail Modal
+    function EquipmentDetailModal({ equipment, allCategories, onSave, onClose }) {
+      const [form, setForm] = React.useState(equipment || {});
+
+      const handleSave = async () => {
+        try {
+          await updateRecord(CONFIG.TABLES.equipment, form.id, {
+            'Name': form.name,
+            'Full Name': form.fullName || null,
+            'Category': form.category || null,
+            'Subcategory': form.subcategory || null,
+            'Product URL': form.productUrl,
+            'Unit Cost': form.unitCost,
+            'Qty 2-Cam Studio': form.qty2CamStudio,
+            'Qty 3-Cam Studio': form.qty3CamStudio,
+            'Qty 2-Cam Travel': form.qty2CamTravel,
+            'Qty 3-Cam Travel': form.qty3CamTravel,
+            'Spare Count': form.spareCount,
+            'Travel Kit': form.travelKit,
+            'Permanent Install': form.permanentInstall,
+            'Alternate': form.alternate,
+            'Generalized': form.generalized,
+            'Notes': form.notes
+          });
+          onSave();
+        } catch (error) {
+          console.error('Save failed:', error);
+        }
+      };
+
+      return (
+        <div style={styles.modal} onClick={onClose}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            {/* Header with photo */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+              <h2 style={{ marginTop: 0, color: '#F59E0B', flex: 1 }}>Equipment Details</h2>
+              <div style={{
+                width: '120px', height: '120px', borderRadius: '8px', backgroundColor: '#FFFFFF',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+                flexShrink: 0, marginLeft: '12px'
+              }}>
+                {form.photo ? (
+                  <img src={form.photo} alt={form.name} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+                ) : (
+                  <span style={{ fontSize: '32px', color: '#4B5563' }}>📷</span>
+                )}
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Name</label>
+                <input
+                  style={styles.input}
+                  value={form.name || ''}
+                  placeholder="e.g. Belkin USB-C 10'"
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Category</label>
+                <select
+                  style={styles.input}
+                  value={form.category || ''}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
+                >
+                  <option value="">Select Category</option>
+                  {CATEGORIES.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Subcategory</label>
+                <input
+                  style={styles.input}
+                  value={form.subcategory || ''}
+                  placeholder="e.g. Cameras, Cables"
+                  onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Full Name</label>
+              <input
+                style={styles.input}
+                value={form.fullName || ''}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={{ ...styles.formGroup, position: 'relative' }}>
+                <label style={styles.label}>Product URL</label>
+                <input
+                  style={styles.input}
+                  type="url"
+                  value={form.productUrl || ''}
+                  onChange={(e) => setForm({ ...form, productUrl: e.target.value })}
+                  onFocus={(e) => {
+                    e.target.style.position = 'absolute';
+                    e.target.style.width = 'calc(215% + 12px)';
+                    e.target.style.zIndex = '10';
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.position = 'static';
+                    e.target.style.width = '100%';
+                    e.target.style.zIndex = 'auto';
+                  }}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Unit Cost</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  value={form.unitCost || 0}
+                  onChange={(e) => setForm({ ...form, unitCost: parseFloat(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Qty 2-Cam Studio</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  value={form.qty2CamStudio || 1}
+                  onChange={(e) => setForm({ ...form, qty2CamStudio: parseInt(e.target.value) })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Qty 3-Cam Studio</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  value={form.qty3CamStudio || 1}
+                  onChange={(e) => setForm({ ...form, qty3CamStudio: parseInt(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Qty 2-Cam Travel</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  value={form.qty2CamTravel || 1}
+                  onChange={(e) => setForm({ ...form, qty2CamTravel: parseInt(e.target.value) })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Qty 3-Cam Travel</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  value={form.qty3CamTravel || 1}
+                  onChange={(e) => setForm({ ...form, qty3CamTravel: parseInt(e.target.value) })}
+                />
+              </div>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Spare Count</label>
+              <input
+                style={styles.input}
+                type="number"
+                value={form.spareCount || 0}
+                onChange={(e) => setForm({ ...form, spareCount: parseInt(e.target.value) })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={form.travelKit || false}
+                  onChange={(e) => setForm({ ...form, travelKit: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <span style={{ fontSize: '13px' }}>Travel Kit</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={form.permanentInstall || false}
+                  onChange={(e) => setForm({ ...form, permanentInstall: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <span style={{ fontSize: '13px' }}>Permanent Install</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={form.alternate || false}
+                  onChange={(e) => setForm({ ...form, alternate: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <span style={{ fontSize: '13px' }}>Alternate</span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', flex: 1 }}>
+                <input
+                  type="checkbox"
+                  checked={form.generalized || false}
+                  onChange={(e) => setForm({ ...form, generalized: e.target.checked })}
+                  style={styles.checkbox}
+                />
+                <span style={{ fontSize: '13px' }}>Generalized</span>
+              </label>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Notes</label>
+              <textarea
+                style={{ ...styles.input, minHeight: '80px', fontFamily: "'DM Sans', sans-serif" }}
+                value={form.notes || ''}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button style={styles.buttonSecondary} onClick={onClose}>Cancel</button>
+              <button style={styles.button} onClick={handleSave}>Save</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Production Form Component
+    function ProductionForm({ production, onSave, onClose }) {
+      const [form, setForm] = React.useState(production || {});
+      const [saving, setSaving] = React.useState(false);
+
+      const handleSave = async () => {
+        if (!form.name?.trim() || saving) return;
+        setSaving(true);
+        try {
+          const fields = {
+            'Name': form.name.trim(),
+          };
+          if (form.code) fields['Studio Code'] = form.code;
+          if (form.type) fields['Type'] = form.type;
+          if (form.client) fields['Client'] = form.client;
+          if (form.event) fields['Event'] = form.event;
+          if (form.city) fields['City'] = form.city;
+          if (form.venue) fields['Venue'] = form.venue;
+          if (form.venueAddress) fields['Venue Address'] = form.venueAddress;
+          if (form.startDate) fields['Start Date'] = form.startDate;
+          if (form.endDate) fields['End Date'] = form.endDate;
+          // Note: 'Date' field removed — use 'Start Date' instead
+          // 'Load-in' field removed — does not exist in Airtable base
+          // if (form.schedule) fields['Load-in'] = form.schedule;
+          if (form.localContact) fields['Local Contact'] = form.localContact;
+          if (form.cameraCount) fields['Camera Count'] = form.cameraCount;
+          if (form.hotelName) fields['Hotel Name'] = form.hotelName;
+          if (form.hotelAddress) fields['Hotel Address'] = form.hotelAddress;
+          if (form.hotelConfirmation) fields['Hotel Confirmation'] = form.hotelConfirmation;
+          if (form.shippingAddress) fields['Shipping Address'] = form.shippingAddress;
+          if (form.shippingTracking) fields['Shipping Tracking'] = form.shippingTracking;
+          if (form.shippingNotes) fields['Shipping Notes'] = form.shippingNotes;
+          if (form.flights) fields['Flights'] = form.flights;
+          if (form.crew) fields['Crew'] = form.crew;
+          if (form.notes) fields['Notes'] = form.notes;
+
+          if (production?.id) {
+            await updateRecord(CONFIG.TABLES.studios, production.id, fields);
+          } else {
+            fields['Type'] = 'Travel';
+            await createRecord(CONFIG.TABLES.studios, fields);
+          }
+
+          onSave();
+        } catch (error) {
+          console.error('Save failed:', error);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <div style={styles.modal} onClick={onClose}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ marginTop: 0, color: '#F59E0B' }}>
+              {production?.id ? 'Edit Production' : 'New Production'}
+            </h2>
+            {!production?.id && (
+              <div style={{ fontSize: '12px', color: '#6B7280', marginBottom: '16px' }}>
+                Fill in the basics — you can add all details after creating.
+              </div>
+            )}
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Name</label>
+              <input
+                style={styles.input}
+                value={form.name || ''}
+                placeholder="e.g. Chicago Midwinter 2026"
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Client</label>
+                <input
+                  style={styles.input}
+                  value={form.client || ''}
+                  onChange={(e) => setForm({ ...form, client: e.target.value })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Event</label>
+                <input
+                  style={styles.input}
+                  value={form.event || ''}
+                  onChange={(e) => setForm({ ...form, event: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>City</label>
+                <input
+                  style={styles.input}
+                  value={form.city || ''}
+                  onChange={(e) => setForm({ ...form, city: e.target.value })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Camera Setup</label>
+                <select
+                  style={styles.input}
+                  value={form.cameraCount || '2'}
+                  onChange={(e) => setForm({ ...form, cameraCount: e.target.value })}
+                >
+                  <option value="2">2-Camera Setup</option>
+                  <option value="3">3-Camera Setup</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Start Date</label>
+                <input
+                  style={styles.input}
+                  type="date"
+                  value={form.startDate || ''}
+                  onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+                />
+              </div>
+              <div style={styles.formGroup}>
+                <label style={styles.label}>End Date</label>
+                <input
+                  style={styles.input}
+                  type="date"
+                  value={form.endDate || ''}
+                  onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button style={styles.buttonSecondary} onClick={onClose} disabled={saving}>Cancel</button>
+              <button style={{ ...styles.button, opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Permanent Studios Tab
+    function PermStudiosTab({ studios, studioEquipment, activeProduction, onActivate }) {
+      const permanentStudios = studios.filter(s => s.type === 'Permanent' || s.type === 'permanent');
+
+      const getStudioEquipmentCount = (studioId) => {
+        return studioEquipment.filter(se => se.fields['Studio']?.[0] === studioId).length;
+      };
+
+      return (
+        <div style={styles.section}>
+          <h3 style={styles.sectionTitle}>📍 Permanent Studios</h3>
+          <div style={styles.grid}>
+            {permanentStudios.map(studio => (
+              <div
+                key={studio.id}
+                style={{
+                  ...styles.card,
+                  ...(activeProduction?.id === studio.id && styles.cardActive)
+                }}
+                onClick={() => onActivate(studio)}
+              >
+                <div style={{ fontWeight: '600', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {studio.name}
+                  {activeProduction?.id === studio.id && (
+                    <span style={styles.badge}>ACTIVE</span>
+                  )}
+                </div>
+                <div style={{ fontSize: '12px', color: '#9CA3AF', marginBottom: '4px' }}>
+                  {studio.city}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280', marginBottom: '4px' }}>
+                  {getStudioEquipmentCount(studio.id)} items assigned
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280' }}>
+                  {studio.cameraCount}-Camera Setup
+                </div>
+              </div>
+            ))}
+          </div>
+          {permanentStudios.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
+              No permanent studios configured.
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Travel Productions Tab
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      if (isNaN(date.getTime())) return dateStr;
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+    };
+
+    function TravelTab({ studios, contacts, activeProduction, onSetActive, onEdit, onDelete, onCreateNew, onSaveProduction, onRefresh }) {
+      const travelProductions = studios.filter(s => s.type === 'Travel' || s.type === 'travel');
+      const [expandedId, setExpandedId] = React.useState(null);
+      const [editingId, setEditingId] = React.useState(null);
+      const [editForm, setEditForm] = React.useState({});
+      const [saving, setSaving] = React.useState(false);
+      const [docViewer, setDocViewer] = React.useState(null);
+      const [contactPickerFor, setContactPickerFor] = React.useState(null);
+      const [contactSearch, setContactSearch] = React.useState('');
+
+      const handleLinkContact = async (productionId, contactId) => {
+        const production = travelProductions.find(p => p.id === productionId);
+        if (!production) return;
+        const newIds = [...(production.contactIds || []), contactId];
+        await onSaveProduction({ id: productionId, contactIds: newIds });
+        setContactPickerFor(null);
+        setContactSearch('');
+      };
+
+      const handleUnlinkContact = async (productionId, contactId) => {
+        const production = travelProductions.find(p => p.id === productionId);
+        if (!production) return;
+        const newIds = (production.contactIds || []).filter(id => id !== contactId);
+        await onSaveProduction({ id: productionId, contactIds: newIds });
+      };
+
+      const PINNABLE_FIELDS = [
+        { key: 'client', label: 'Client' },
+        { key: 'event', label: 'Event' },
+        { key: 'city', label: 'City' },
+        { key: 'venue', label: 'Venue' },
+        { key: 'startDate', label: 'Start Date' },
+        { key: 'endDate', label: 'End Date' },
+        { key: 'hotelName', label: 'Hotel' },
+        { key: 'shippingTracking', label: 'Tracking' },
+        { key: 'localContact', label: 'Contact' },
+      ];
+
+      const getPinnedFields = (production) => {
+        if (!production.cardFields) return ['client', 'venue', 'hotelName'];
+        return production.cardFields.split(',').filter(Boolean);
+      };
+
+      const togglePin = async (production, fieldKey) => {
+        const current = getPinnedFields(production);
+        const next = current.includes(fieldKey)
+          ? current.filter(f => f !== fieldKey)
+          : [...current, fieldKey];
+        const newVal = next.join(',');
+        await onSaveProduction({ id: production.id, cardFields: newVal });
+      };
+
+      const startEditing = (production) => {
+        setEditingId(production.id);
+        setEditForm({ ...production });
+        if (expandedId !== production.id) setExpandedId(production.id);
+      };
+
+      const cancelEditing = () => {
+        setEditingId(null);
+        setEditForm({});
+      };
+
+      const handleSave = async () => {
+        if (saving) return;
+        setSaving(true);
+        try {
+          await onSaveProduction(editForm);
+          setEditingId(null);
+          setEditForm({});
+        } catch (err) {
+          console.error('Save failed:', err);
+          alert('Save failed — check that all field names exist in Airtable. Error: ' + err.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const detailField = (label, value, key, type, production) => {
+        const isEditing = editingId === production.id;
+        const pinned = getPinnedFields(production);
+        const isPinned = pinned.includes(key);
+        const isPinnable = PINNABLE_FIELDS.some(f => f.key === key);
+        if (!isEditing && !value) return null;
+        return (
+          <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
+            {isPinnable && (
+              <div
+                onClick={(e) => { e.stopPropagation(); togglePin(production, key); }}
+                title={isPinned ? 'Unpin from card' : 'Pin to card'}
+                style={{
+                  width: '10px', height: '10px', borderRadius: '50%', flexShrink: 0, cursor: 'pointer',
+                  marginTop: '14px',
+                  border: isPinned ? '2px solid #F59E0B' : '2px solid #374151',
+                  backgroundColor: isPinned ? '#F59E0B' : 'transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              />
+            )}
+            {!isPinnable && <div style={{ width: '10px', flexShrink: 0 }} />}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '3px' }}>{label}</div>
+              {isEditing ? (
+                type === 'textarea' ? (
+                  <textarea
+                    style={{ ...styles.input, minHeight: '50px', fontSize: '13px' }}
+                    value={editForm[key] || ''}
+                    onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                  />
+                ) : type === 'select-cam' ? (
+                  <select
+                    style={{ ...styles.input, fontSize: '13px' }}
+                    value={editForm[key] || '2'}
+                    onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                  >
+                    <option value="2">2-Camera Setup</option>
+                    <option value="3">3-Camera Setup</option>
+                  </select>
+                ) : (
+                  <input
+                    style={{ ...styles.input, fontSize: '13px' }}
+                    type={type}
+                    value={editForm[key] || ''}
+                    onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })}
+                  />
+                )
+              ) : (
+                <div style={{ fontSize: '13px', color: '#E5E7EB', whiteSpace: 'pre-wrap' }}>{type === 'date' ? formatDate(value) : value}</div>
+              )}
+            </div>
+          </div>
+        );
+      };
+
+      const fieldLabel = { client: 'Client', event: 'Event', city: 'City', venue: 'Venue', startDate: 'Start', endDate: 'End', hotelName: 'Hotel', shippingTracking: 'Tracking', localContact: 'Contact' };
+      const fieldIcon = { client: '👤', event: '🎬', city: '🏙', venue: '📍', startDate: '📅', endDate: '📅', hotelName: '🏨', shippingTracking: '📦', localContact: '📞' };
+
+      return (
+        <div style={styles.section}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={styles.sectionTitle}>✈️ Travel Productions</h3>
+            <button style={styles.button} onClick={onCreateNew}>+ New Production</button>
+          </div>
+
+          {travelProductions.map(production => {
+            const isExpanded = expandedId === production.id;
+            const isEditing = editingId === production.id;
+            const isActive = activeProduction?.id === production.id;
+            const pinned = getPinnedFields(production);
+            const dateStr = production.startDate
+              ? (production.endDate ? `${formatDate(production.startDate)} — ${formatDate(production.endDate)}` : formatDate(production.startDate))
+              : '';
+
+            return (
+              <div
+                key={production.id}
+                style={{
+                  ...styles.card,
+                  ...(isActive && styles.cardActive),
+                  marginBottom: '12px'
+                }}
+              >
+                {/* Header row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                      {production.name}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#9CA3AF' }}>
+                      {production.city}{dateStr ? ` • ${dateStr}` : ''} • {production.cameraCount}-Cam
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+                    {isActive ? (
+                      <span style={styles.badge}>ACTIVE</span>
+                    ) : (
+                      <button style={{ ...styles.button, fontSize: '11px', padding: '4px 12px' }} onClick={() => onSetActive(production)}>Set Active</button>
+                    )}
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => startEditing(production)}
+                        style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF' }}
+                        onMouseEnter={(e) => e.target.style.color = '#E5E7EB'}
+                        onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                      >Edit</button>
+                      <button
+                        onClick={() => { if (confirm('Delete this production?')) onDelete(production.id); }}
+                        style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #37415166', backgroundColor: 'transparent', color: '#6B7280' }}
+                        onMouseEnter={(e) => e.target.style.color = '#EF4444'}
+                        onMouseLeave={(e) => e.target.style.color = '#6B7280'}
+                      >Delete</button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pinned field summary */}
+                <div style={{ fontSize: '12px', color: '#D1D5DB', marginBottom: '8px', lineHeight: '1.8', display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+                  {pinned.map(key => {
+                    const val = production[key];
+                    if (!val) return null;
+                    const display = (key === 'startDate' || key === 'endDate') ? formatDate(val) : val;
+                    return <span key={key}>{fieldIcon[key] || '•'} {display}</span>;
+                  })}
+                </div>
+
+                {/* Show/Hide Details button */}
+                <button
+                  onClick={() => { setExpandedId(isExpanded ? null : production.id); if (isEditing && isExpanded) cancelEditing(); }}
+                  style={{
+                    width: '100%', padding: '8px', borderRadius: '6px', cursor: 'pointer',
+                    border: '1px solid #1F2937', backgroundColor: isExpanded ? '#1E293B' : 'transparent',
+                    color: isExpanded ? '#F59E0B' : '#6B7280', fontSize: '12px', fontWeight: '500',
+                    transition: 'all 0.15s ease', textAlign: 'center'
+                  }}
+                  onMouseEnter={(e) => { if (!isExpanded) e.target.style.backgroundColor = '#1E293B'; }}
+                  onMouseLeave={(e) => { if (!isExpanded) e.target.style.backgroundColor = 'transparent'; }}
+                >
+                  {isExpanded ? '▲ Hide Details' : '▼ Show Details'}
+                </button>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
+                    {!isEditing && (
+                      <div style={{ fontSize: '10px', color: '#4B5563', marginBottom: '10px', fontStyle: 'italic' }}>
+                        Click the dots to choose what shows on the card above
+                      </div>
+                    )}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px' }}>
+                      {/* Left column - Production Info */}
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Production</div>
+                        {isEditing && detailField('Name', production.name, 'name', 'text', production)}
+                        {detailField('Client', production.client, 'client', 'text', production)}
+                        {detailField('Event', production.event, 'event', 'text', production)}
+                        {detailField('Camera Setup', production.cameraCount + '-Camera', 'cameraCount', 'select-cam', production)}
+                        {detailField('City', production.city, 'city', 'text', production)}
+                        {detailField('Venue', production.venue, 'venue', 'text', production)}
+                        {detailField('Venue Address', production.venueAddress, 'venueAddress', 'text', production)}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 8px' }}>
+                          {detailField('Start Date', production.startDate, 'startDate', 'date', production)}
+                          {detailField('End Date', production.endDate, 'endDate', 'date', production)}
+                        </div>
+                        {detailField('Schedule', production.schedule, 'schedule', 'textarea', production)}
+                        {detailField('Local Contact', production.localContact, 'localContact', 'text', production)}
+                        {detailField('Crew', production.crew, 'crew', 'textarea', production)}
+                        {detailField('Notes', production.notes, 'notes', 'textarea', production)}
+
+                        {/* Contacts section */}
+                        {(() => {
+                          const linkedContacts = (production.contactIds || [])
+                            .map(cid => contacts.find(c => c.id === cid))
+                            .filter(Boolean);
+                          const showPicker = contactPickerFor === production.id;
+                          const availableContacts = contacts
+                            .filter(c => !(production.contactIds || []).includes(c.id))
+                            .filter(c => !contactSearch || c.name.toLowerCase().includes(contactSearch.toLowerCase()) || c.business.toLowerCase().includes(contactSearch.toLowerCase()));
+
+                          return (
+                            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                                <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contacts</div>
+                                <button
+                                  onClick={() => { setContactPickerFor(showPicker ? null : production.id); setContactSearch(''); }}
+                                  style={{
+                                    fontSize: '10px', padding: '2px 10px', borderRadius: '4px', cursor: 'pointer',
+                                    border: '1px solid #374151', backgroundColor: showPicker ? '#F59E0B22' : 'transparent',
+                                    color: showPicker ? '#F59E0B' : '#9CA3AF'
+                                  }}
+                                  onMouseEnter={(e) => { if (!showPicker) e.target.style.color = '#F59E0B'; }}
+                                  onMouseLeave={(e) => { if (!showPicker) e.target.style.color = '#9CA3AF'; }}
+                                >+ Add Contact</button>
+                              </div>
+
+                              {/* Contact picker dropdown */}
+                              {showPicker && (
+                                <div style={{
+                                  marginBottom: '10px', padding: '8px', backgroundColor: '#0D0F13',
+                                  borderRadius: '6px', border: '1px solid #374151'
+                                }}>
+                                  <input
+                                    type="text"
+                                    placeholder="Search contacts..."
+                                    value={contactSearch}
+                                    onChange={(e) => setContactSearch(e.target.value)}
+                                    style={{
+                                      width: '100%', padding: '6px 10px', fontSize: '12px', borderRadius: '4px',
+                                      border: '1px solid #374151', backgroundColor: '#1A1D24', color: '#E5E7EB',
+                                      outline: 'none', boxSizing: 'border-box', marginBottom: '6px'
+                                    }}
+                                    autoFocus
+                                  />
+                                  <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                                    {availableContacts.length > 0 ? availableContacts.map(c => (
+                                      <div
+                                        key={c.id}
+                                        onClick={() => handleLinkContact(production.id, c.id)}
+                                        style={{
+                                          display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 8px',
+                                          borderRadius: '4px', cursor: 'pointer', fontSize: '12px', color: '#E5E7EB'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E293B'}
+                                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                      >
+                                        <span style={{ fontWeight: '500' }}>{c.name}</span>
+                                        {c.business && <span style={{ color: '#6B7280', fontSize: '11px' }}>— {c.business}</span>}
+                                        {c.role && <span style={{ color: '#4B5563', fontSize: '10px' }}>({c.role})</span>}
+                                      </div>
+                                    )) : (
+                                      <div style={{ fontSize: '11px', color: '#4B5563', fontStyle: 'italic', padding: '6px 8px' }}>
+                                        {contacts.length === 0 ? 'No contacts in Airtable yet' : 'All contacts already linked'}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Linked contacts list */}
+                              {linkedContacts.length > 0 ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                  {linkedContacts.map(c => (
+                                    <div key={c.id} style={{
+                                      display: 'flex', alignItems: 'center', gap: '10px', padding: '7px 10px',
+                                      backgroundColor: '#0D0F13', borderRadius: '6px', border: '1px solid #1F2937'
+                                    }}>
+                                      <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#F59E0B22', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', color: '#F59E0B', fontWeight: '600', flexShrink: 0 }}>
+                                        {c.name.charAt(0).toUpperCase()}
+                                      </div>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
+                                          <span style={{ fontSize: '12px', fontWeight: '500', color: '#E5E7EB' }}>{c.name}</span>
+                                          {c.business && <span style={{ fontSize: '11px', color: '#6B7280' }}>{c.business}</span>}
+                                          {c.role && <span style={{ fontSize: '10px', color: '#4B5563' }}>({c.role})</span>}
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '12px', marginTop: '2px' }}>
+                                          {c.phone && (
+                                            <a href={'tel:' + c.phone} style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}
+                                              onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                              onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                            >📞 {c.phone}</a>
+                                          )}
+                                          {c.email && (
+                                            <a href={'mailto:' + c.email} style={{ fontSize: '11px', color: '#9CA3AF', textDecoration: 'none' }}
+                                              onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                              onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                            >✉ {c.email}</a>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <button
+                                        onClick={() => handleUnlinkContact(production.id, c.id)}
+                                        style={{
+                                          background: 'none', border: 'none', color: '#4B5563', fontSize: '14px',
+                                          cursor: 'pointer', padding: '2px 4px', flexShrink: 0
+                                        }}
+                                        onMouseEnter={(e) => e.target.style.color = '#EF4444'}
+                                        onMouseLeave={(e) => e.target.style.color = '#4B5563'}
+                                        title="Remove contact"
+                                      >×</button>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ fontSize: '12px', color: '#4B5563', fontStyle: 'italic' }}>
+                                  No contacts linked — use + Add Contact or link them in Airtable
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Right column - Logistics */}
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '10px' }}>Logistics</div>
+                        {detailField('Hotel', production.hotelName, 'hotelName', 'text', production)}
+                        {detailField('Hotel Address', production.hotelAddress, 'hotelAddress', 'text', production)}
+                        {detailField('Hotel Confirmation', production.hotelConfirmation, 'hotelConfirmation', 'text', production)}
+                        {detailField('Flights', production.flights, 'flights', 'textarea', production)}
+                        {detailField('Shipping Address', production.shippingAddress, 'shippingAddress', 'textarea', production)}
+                        {detailField('Shipping Tracking', production.shippingTracking, 'shippingTracking', 'text', production)}
+                        {detailField('Shipping Notes', production.shippingNotes, 'shippingNotes', 'text', production)}
+
+                        {/* Documents section */}
+                        <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <div style={{ fontSize: '11px', color: '#F59E0B', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Documents</div>
+                            <label style={{ fontSize: '11px', color: '#6B7280', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }} onMouseEnter={(e) => e.currentTarget.style.color = '#F59E0B'} onMouseLeave={(e) => e.currentTarget.style.color = '#6B7280'}>
+                              + Upload
+                              <input type="file" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv" style={{ display: 'none' }} onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const label = e.target.closest('label');
+                                const origText = label.childNodes[0].textContent;
+                                label.childNodes[0].textContent = 'Uploading...';
+                                try {
+                                  await uploadAttachment('Studios', production.id, 'Documents', file);
+                                  if (onRefresh) await onRefresh();
+                                } catch (err) {
+                                  alert('Upload failed: ' + err.message);
+                                }
+                                label.childNodes[0].textContent = origText;
+                                e.target.value = '';
+                              }} />
+                            </label>
+                          </div>
+                          {production.documents && production.documents.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {production.documents.map((doc, i) => (
+                                <div key={i} style={{
+                                  display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px',
+                                  backgroundColor: '#0D0F13', borderRadius: '6px', border: '1px solid #1F2937'
+                                }}>
+                                  <span style={{ fontSize: '14px' }}>
+                                    {doc.type?.includes('pdf') ? '📄' : doc.type?.includes('image') ? '🖼' : '📎'}
+                                  </span>
+                                  <span style={{ flex: 1, fontSize: '12px', color: '#E5E7EB', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {doc.filename}
+                                  </span>
+                                  {doc.type?.includes('image') ? (
+                                    <button
+                                      onClick={() => setDocViewer(doc)}
+                                      style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF' }}
+                                      onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                      onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                    >View</button>
+                                  ) : (
+                                    <a
+                                      href={doc.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF', textDecoration: 'none' }}
+                                      onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                      onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                    >View</a>
+                                  )}
+                                  <a
+                                    href={doc.url}
+                                    download
+                                    style={{ fontSize: '10px', padding: '2px 8px', borderRadius: '4px', border: '1px solid #374151', color: '#9CA3AF', textDecoration: 'none' }}
+                                    onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                    onMouseLeave={(e) => e.target.style.color = '#9CA3AF'}
+                                  >↓</a>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '12px', color: '#4B5563', fontStyle: 'italic' }}>
+                              No documents yet — click + Upload above
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Edit/Save controls */}
+                    {isEditing && (
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #1F2937' }}>
+                        <button style={styles.buttonSecondary} onClick={cancelEditing} disabled={saving}>Cancel</button>
+                        <button style={{ ...styles.button, opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : 'Save Changes'}</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {travelProductions.length === 0 && (
+            <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
+              No travel productions yet. Create one to get started.
+            </div>
+          )}
+
+          {/* Document Viewer Modal */}
+          {docViewer && (
+            <div style={styles.overlay} onClick={() => setDocViewer(null)}>
+              <div style={{ position: 'fixed', top: '16px', left: '16px', right: '16px', bottom: '16px', backgroundColor: '#1A1D23', borderRadius: '12px', border: '1px solid #2A2D35', display: 'flex', flexDirection: 'column', padding: '16px' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexShrink: 0 }}>
+                  <h3 style={{ ...styles.sectionTitle, marginBottom: 0 }}>{docViewer.filename}</h3>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <a
+                      href={docViewer.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ ...styles.buttonSecondary, textDecoration: 'none', fontSize: '12px', display: 'inline-block' }}
+                    >Download</a>
+                    <button style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '20px', cursor: 'pointer' }} onClick={() => setDocViewer(null)}>×</button>
+                  </div>
+                </div>
+                <div style={{ flex: 1, overflow: 'auto', borderRadius: '8px', backgroundColor: '#0D0F13', minHeight: 0 }}>
+                  {docViewer.type?.includes('pdf') ? (
+                    <iframe src={docViewer.url} style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px', display: 'block' }} />
+                  ) : docViewer.type?.includes('image') ? (
+                    <img src={docViewer.url} style={{ maxWidth: '100%', borderRadius: '8px' }} />
+                  ) : (
+                    <div style={{ padding: '20px', color: '#9CA3AF', textAlign: 'center' }}>
+                      <p>Preview not available for this file type.</p>
+                      <a href={docViewer.url} target="_blank" rel="noopener noreferrer" style={{ color: '#F59E0B' }}>Open in new tab</a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Tab 2: Checklist View
+    function ChecklistTab({ activeProduction, equipment, checklist, cases, studioEquipment, activePhase, onUpdateStatus, onUpdateCase, onUpdateQty, onUpdateSource, onQuickCreateCase, onBulkUpdate, onInitialize, onResetAll, onCreateReturn, onAddItem, onRemoveItem, onPhaseChange, onOpenEquipment, loadingAction }) {
+      const [expandedCategories, setExpandedCategories] = React.useState({});
+      const [showAddModal, setShowAddModal] = React.useState(false);
+      const [addSearch, setAddSearch] = React.useState('');
+      const [selectedItems, setSelectedItems] = React.useState(new Set());
+      const [activeFilter, setActiveFilter] = React.useState(null); // null, 'unsourced', 'unpacked', 'notSent', or a source value like 'source:Own'
+
+      if (!activeProduction) {
+        return (
+          <div style={{ ...styles.section, textAlign: 'center', padding: '40px' }}>
+            <div style={{ marginBottom: '16px' }}>Please select a studio or production from the Studios or Travel tab</div>
+          </div>
+        );
+      }
+
+      const totalItems = checklist.length;
+      const securedCount = checklist.filter(c => c.source && c.source !== '').length;
+      const packedCount = checklist.filter(c => !!c.caseId).length;
+      const onItsWayCount = checklist.filter(c => c.onItsWay).length;
+
+      // Clear selections when phase changes
+      React.useEffect(() => { setSelectedItems(new Set()); }, [activePhase]);
+
+      const toggleSelectAll = () => {
+        if (selectedItems.size === checklist.length) {
+          setSelectedItems(new Set());
+        } else {
+          setSelectedItems(new Set(checklist.map(c => c.id)));
+        }
+      };
+
+      // Dynamic options: merge defaults with any custom values from existing data
+      const sourceOptions = React.useMemo(() => {
+        const custom = checklist.map(c => c.source).filter(s => s && !SOURCE_DEFAULTS.includes(s));
+        return [...SOURCE_DEFAULTS, ...new Set(custom)];
+      }, [checklist]);
+
+      const camCount = activeProduction?.cameraCount || '2';
+      const camNum = parseInt(camCount);
+      const atemModel = camNum >= 3 ? 'ATEM ISO' : 'ATEM Mini';
+
+      const signalChains = [
+        {
+          title: `Video Signal Chain (${camNum}-Cam)`,
+          steps: [
+            `Cameras (×${camNum}) → HDMI`,
+            `BlackMagic Converters (×${camNum}) → HDMI to SDI`,
+            `HyperDecks (×${camNum}) → SSDs (Master Recording)`,
+            `HyperDecks → HDMI → ${atemModel} → Monitor + SSD (Backup)`
+          ]
+        },
+        {
+          title: 'Audio Signal Chain',
+          steps: [
+            'Mics → XLR → Zoom F4 → SD Card (Master Audio)',
+            `${atemModel} records embedded camera audio (Backup)`
+          ]
+        }
+      ];
+
+      const groupedByCategory = {};
+      CATEGORIES.forEach((cat, idx) => {
+        const bgColor = idx % 2 === 0 ? '#0D0F13' : '#141720';
+        groupedByCategory[cat.id] = {
+          name: cat.name,
+          icon: cat.icon,
+          bgColor: bgColor,
+          items: checklist
+            .filter(c => c.equipmentId)
+            .map(c => {
+              const equip = equipment.find(e => e.id === c.equipmentId);
+              return equip && equip.category === cat.name ? { ...equip, ...c } : null;
+            })
+            .filter(Boolean)
+        };
+      });
+
+      const toggleCategory = (catId) => {
+        setExpandedCategories(prev => ({
+          ...prev,
+          [catId]: prev[catId] === false ? true : (prev[catId] === undefined ? false : !prev[catId])
+        }));
+      };
+
+      // Check if return checklist exists
+      const hasReturnChecklist = checklist.length > 0 || activePhase === 'Return';
+
+      // Add Item modal: filter equipment not already in this phase's checklist
+      const checklistEquipIds = checklist.map(c => c.equipmentId);
+      const availableEquipment = equipment
+        .filter(e => !checklistEquipIds.includes(e.id))
+        .filter(e => addSearch === '' || e.name.toLowerCase().includes(addSearch.toLowerCase()) || (e.fullName && e.fullName.toLowerCase().includes(addSearch.toLowerCase())));
+
+      // Progress bar helper
+      const renderProgressBar = (label, count, total, color) => {
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        return React.createElement('div', { style: { marginBottom: '8px' } },
+          React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '4px' } },
+            React.createElement('span', { style: { fontSize: '11px', color: '#9CA3AF' } }, label),
+            React.createElement('span', { style: { fontSize: '11px', color: '#9CA3AF' } }, `${count}/${total} (${pct}%)`)
+          ),
+          React.createElement('div', { style: { height: '6px', backgroundColor: '#1F2937', borderRadius: '3px', overflow: 'hidden' } },
+            React.createElement('div', { style: { height: '100%', width: `${pct}%`, backgroundColor: color, borderRadius: '3px', transition: 'width 0.3s ease' } })
+          )
+        );
+      };
+
+      return (
+        <div>
+          {/* Context indicator */}
+          <div style={styles.contextIndicator}>
+            <span>Active:</span>
+            <span style={{ color: '#F59E0B', fontWeight: '600' }}>
+              {activeProduction.name} {activeProduction.city ? `• ${activeProduction.city}` : ''}
+            </span>
+            <span>•</span>
+            <span>{camNum}-Camera Setup</span>
+          </div>
+
+          {/* Phase Toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <button
+              style={{
+                ...styles.buttonSecondary,
+                backgroundColor: activePhase === 'Outbound' ? '#F59E0B' : '#1F2937',
+                color: activePhase === 'Outbound' ? '#000' : '#9CA3AF',
+                fontWeight: activePhase === 'Outbound' ? '600' : '400'
+              }}
+              onClick={() => onPhaseChange('Outbound')}
+            >
+              📤 Outbound
+            </button>
+            <button
+              style={{
+                ...styles.buttonSecondary,
+                backgroundColor: activePhase === 'Return' ? '#F59E0B' : '#1F2937',
+                color: activePhase === 'Return' ? '#000' : '#9CA3AF',
+                fontWeight: activePhase === 'Return' ? '600' : '400'
+              }}
+              onClick={() => onPhaseChange('Return')}
+            >
+              📥 Return
+            </button>
+            {activePhase === 'Outbound' && checklist.length > 0 && (
+              <button
+                style={{ ...styles.buttonSecondary, marginLeft: 'auto', backgroundColor: '#1F2937', color: '#9CA3AF', fontSize: '11px', opacity: loadingAction === 'createReturn' ? 0.6 : 1 }}
+                onClick={onCreateReturn}
+                disabled={!!loadingAction}
+              >
+                {loadingAction === 'createReturn' ? 'Creating...' : '+ Create Return Checklist'}
+              </button>
+            )}
+          </div>
+
+          {/* Signal Chain */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>🔗 Signal Chain</h3>
+            {signalChains.map((chain, i) => (
+              <div key={i} style={{ marginBottom: '12px' }}>
+                <div style={{ fontSize: '12px', fontWeight: '600', color: '#9CA3AF', marginBottom: '4px' }}>
+                  {chain.title}
+                </div>
+                <div style={{ fontSize: '11px', color: '#6B7280', padding: '8px 12px', backgroundColor: '#0D0F13', borderRadius: '6px', fontFamily: "'DM Sans', monospace" }}>
+                  {chain.steps.join(' → ')}
+                </div>
+              </div>
+            ))}
+
+            <div style={{ marginTop: '16px', fontSize: '12px', color: '#9CA3AF' }}>
+              <strong>Recording Strategy:</strong>
+              <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
+                <li>HyperDecks record master video per camera angle to SSDs (full quality)</li>
+                <li>Zoom F4 records master audio to SD card (separate tracks)</li>
+                <li>{atemModel} records backup video + embedded audio to SSD</li>
+                <li>Sync claps at start and end of each session for post alignment</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* 3-Stage Progress */}
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>📊 {activePhase} Progress</h3>
+            {renderProgressBar('Secured', securedCount, totalItems, '#3B82F6')}
+            {renderProgressBar('Packed', packedCount, totalItems, '#F59E0B')}
+            {renderProgressBar('On Its Way', onItsWayCount, totalItems, '#10B981')}
+          </div>
+
+          {/* Initialize button if no checklist items */}
+          {checklist.length === 0 && activePhase === 'Outbound' && (
+            <div style={{ ...styles.section, textAlign: 'center' }}>
+              <div style={{ marginBottom: '16px', color: '#9CA3AF' }}>
+                No checklist items yet. Initialize from equipment defaults?
+              </div>
+              <button style={{ ...styles.button, opacity: loadingAction === 'initialize' ? 0.6 : 1 }} onClick={onInitialize} disabled={!!loadingAction}>
+                {loadingAction === 'initialize' ? 'Initializing...' : 'Initialize Checklist'}
+              </button>
+            </div>
+          )}
+
+          {checklist.length === 0 && activePhase === 'Return' && (
+            <div style={{ ...styles.section, textAlign: 'center' }}>
+              <div style={{ marginBottom: '16px', color: '#9CA3AF' }}>
+                No return checklist yet. Create one from the Outbound tab.
+              </div>
+            </div>
+          )}
+
+          {/* Gear Checklist */}
+          {checklist.length > 0 && (
+            <div style={styles.section} onClick={(e) => { if (e.target === e.currentTarget && selectedItems.size > 0) setSelectedItems(new Set()); }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <h3 style={{ ...styles.sectionTitle, marginBottom: 0 }}>✅ Gear Checklist</h3>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button style={styles.buttonSecondary} onClick={() => {
+                    const allCollapsed = {};
+                    CATEGORIES.forEach(cat => { allCollapsed[cat.id] = false; });
+                    setExpandedCategories(allCollapsed);
+                  }}>
+                    Collapse All
+                  </button>
+                  <button style={styles.buttonSecondary} onClick={() => {
+                    setExpandedCategories({});
+                  }}>
+                    Expand All
+                  </button>
+                  <button style={styles.buttonSecondary} onClick={onResetAll}>
+                    Reset All
+                  </button>
+                  <button style={{ ...styles.buttonSecondary, backgroundColor: '#1D4ED8', color: '#fff' }} onClick={() => setShowAddModal(true)}>
+                    + Add Item
+                  </button>
+                </div>
+              </div>
+
+              {/* Bulk Action Bar - always visible */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px',
+                backgroundColor: selectedItems.size > 0 ? '#1E293B' : '#13151A', borderRadius: '8px', marginBottom: '12px',
+                border: `1px solid ${selectedItems.size > 0 ? '#334155' : '#1F2937'}`, flexWrap: 'wrap',
+                opacity: selectedItems.size > 0 ? 1 : 0.5, transition: 'all 0.15s ease'
+              }}>
+                <span style={{ fontSize: '12px', color: selectedItems.size > 0 ? '#F59E0B' : '#4B5563', fontWeight: '600', marginRight: '4px' }}>
+                  {selectedItems.size} selected
+                </span>
+                <EditableSelect
+                  value=""
+                  onChange={(val) => onBulkUpdate([...selectedItems], 'source', val)}
+                  options={sourceOptions}
+                  placeholder="Set Source..."
+                  style={{ ...styles.compactSelect, fontSize: '11px' }}
+                />
+                <EditableSelect
+                  value=""
+                  onChange={(val) => onBulkUpdate([...selectedItems], 'caseId', val)}
+                  options={cases.map(c => ({ value: c.id, label: c.name }))}
+                  placeholder="Set Case..."
+                  style={{ ...styles.compactSelect, fontSize: '11px' }}
+                />
+                <button
+                  style={{ ...styles.buttonSecondary, fontSize: '11px', padding: '4px 10px', backgroundColor: '#10B981', color: '#fff' }}
+                  onClick={() => onBulkUpdate([...selectedItems], 'onItsWay', true)}
+                >
+                  ✈ On Its Way
+                </button>
+                <button
+                  style={{ ...styles.buttonSecondary, fontSize: '11px', padding: '4px 10px' }}
+                  onClick={() => onBulkUpdate([...selectedItems], 'onItsWay', false)}
+                >
+                  Clear ✈
+                </button>
+                <button
+                  style={{ ...styles.buttonSecondary, fontSize: '11px', padding: '4px 10px', marginLeft: 'auto' }}
+                  onClick={toggleSelectAll}
+                >
+                  {selectedItems.size === checklist.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+
+              {/* Filter Bar */}
+              {(() => {
+                const uniqueSources = [...new Set(checklist.map(c => {
+                  const eq = equipment.find(e => e.id === c.equipmentId);
+                  return eq ? ({ ...eq, ...c }).source : c.source;
+                }).filter(Boolean).filter(s => s !== ''))];
+                const filterBtn = (label, filterKey) => (
+                  <button
+                    onClick={() => setActiveFilter(activeFilter === filterKey ? null : filterKey)}
+                    style={{
+                      fontSize: '10px', padding: '3px 10px', borderRadius: '12px', cursor: 'pointer',
+                      border: activeFilter === filterKey ? '1px solid #F59E0B' : '1px solid #2A2D35',
+                      backgroundColor: activeFilter === filterKey ? '#F59E0B22' : 'transparent',
+                      color: activeFilter === filterKey ? '#F59E0B' : '#6B7280',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >{label}</button>
+                );
+                const getVisibleIds = () => {
+                  if (!activeFilter) return checklist.map(c => c.id);
+                  return checklist.filter(c => {
+                    const eq = equipment.find(e => e.id === c.equipmentId);
+                    const merged = eq ? { ...eq, ...c } : c;
+                    if (activeFilter === 'unsourced') return !merged.source || merged.source === '';
+                    if (activeFilter === 'unpacked') return !merged.caseId;
+                    if (activeFilter === 'notSent') return !merged.onItsWay;
+                    if (activeFilter.startsWith('source:')) return merged.source === activeFilter.slice(7);
+                    return true;
+                  }).map(c => c.id);
+                };
+                const visibleIds = getVisibleIds();
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '10px', color: '#4B5563', marginRight: '2px' }}>Filter:</span>
+                    {filterBtn('Unsourced', 'unsourced')}
+                    {filterBtn('Unpacked', 'unpacked')}
+                    {filterBtn('Not Sent', 'notSent')}
+                    <span style={{ width: '1px', height: '16px', backgroundColor: '#2A2D35', margin: '0 2px' }} />
+                    {uniqueSources.map(src => filterBtn(src, 'source:' + src))}
+                    {activeFilter && (
+                      <button
+                        onClick={() => setActiveFilter(null)}
+                        style={{ fontSize: '10px', padding: '3px 8px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #374151', backgroundColor: 'transparent', color: '#9CA3AF', marginLeft: '4px' }}
+                      >✕ Clear</button>
+                    )}
+                    <button
+                      onClick={() => setSelectedItems(new Set(visibleIds))}
+                      style={{ fontSize: '10px', padding: '3px 10px', borderRadius: '12px', cursor: 'pointer', border: '1px solid #334155', backgroundColor: 'transparent', color: '#9CA3AF', marginLeft: 'auto' }}
+                    >Select Visible ({visibleIds.length})</button>
+                  </div>
+                );
+              })()}
+
+              {/* Column Headers */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '10px', padding: '4px 10px',
+                marginBottom: '4px', borderBottom: '1px solid #1F2937'
+              }}>
+                <span style={{ width: '13px', flexShrink: 0, fontSize: '9px', color: '#4B5563', textAlign: 'center' }}>✓</span>
+                <span style={{ flex: 1, fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Item</span>
+                <span style={{ width: '110px', fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Source</span>
+                <span style={{ width: '110px', fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Case</span>
+                <span style={{ fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0, width: '28px', textAlign: 'center' }}>Sent</span>
+                <span style={{ fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0, width: '18px', textAlign: 'center' }}>Amnt</span>
+                <span style={{ fontSize: '9px', color: '#4B5563', textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0, width: '56px', textAlign: 'center' }}>Qty+Spr</span>
+                <span style={{ width: '22px', flexShrink: 0 }} />
+              </div>
+
+              {/* Category sections */}
+              {CATEGORIES.map((cat, catIdx) => {
+                const catData = groupedByCategory[cat.id];
+                const visibleItems = catData.items.filter(item => item.id).filter(item => {
+                  if (!activeFilter) return true;
+                  if (activeFilter === 'unsourced') return !item.source || item.source === '';
+                  if (activeFilter === 'unpacked') return !item.caseId;
+                  if (activeFilter === 'notSent') return !item.onItsWay;
+                  if (activeFilter.startsWith('source:')) return item.source === activeFilter.slice(7);
+                  return true;
+                });
+
+                if (visibleItems.length === 0) return null;
+
+                const catSecured = visibleItems.filter(i => i.source && i.source !== '').length;
+                const isExpanded = expandedCategories[cat.id] !== false;
+
+                return (
+                  <div key={cat.id} style={styles.collapsible}>
+                    <div
+                      style={styles.collapsibleHeader}
+                      onClick={() => { if (selectedItems.size > 0) setSelectedItems(new Set()); }}
+                    >
+                      <span>{cat.icon} {cat.name} ({catSecured}/{visibleItems.length})</span>
+                      <span
+                        onClick={(e) => { e.stopPropagation(); toggleCategory(cat.id); }}
+                        style={{ cursor: 'pointer', padding: '4px 12px', borderRadius: '4px', userSelect: 'none' }}
+                        onMouseEnter={(e) => e.target.style.backgroundColor = '#1E293B'}
+                        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                      >{isExpanded ? '▼' : '▶'}</span>
+                    </div>
+                    {isExpanded && (
+                      <div style={{ ...styles.categoryWrapper, backgroundColor: catData.bgColor }}>
+                        {(() => {
+                          const subcats = [];
+                          const subcatMap = {};
+                          visibleItems.forEach(item => {
+                            const sc = item.subcategory || '';
+                            if (!subcatMap[sc]) { subcatMap[sc] = []; subcats.push(sc); }
+                            subcatMap[sc].push(item);
+                          });
+                          subcats.sort((a, b) => {
+                            if (a === '') return -1;
+                            if (b === '') return 1;
+                            return a.localeCompare(b);
+                          });
+                          return subcats.map((sc, scIdx) => (
+                            <React.Fragment key={sc || '__none__'}>
+                              {sc && (
+                                <div style={{
+                                  fontSize: '10px', color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.5px',
+                                  padding: '6px 10px 2px', marginTop: scIdx > 0 ? '4px' : '0',
+                                  borderTop: scIdx > 0 ? '1px solid #1F2937' : 'none'
+                                }}>{sc}</div>
+                              )}
+                              {!sc && scIdx > 0 && (
+                                <div style={{ borderTop: '1px solid #1F2937', marginTop: '4px' }} />
+                              )}
+                              {subcatMap[sc].map(item => {
+                          const isSecured = item.source && item.source !== '';
+                          const isPacked = !!item.caseId;
+                          const allDone = isSecured && isPacked && item.onItsWay;
+                          const isSelected = selectedItems.has(item.id);
+                          return (
+                            <div key={item.id}
+                              onClick={(e) => {
+                                  const tag = e.target.tagName;
+                                if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'OPTION' || tag === 'LABEL') return;
+                                const next = new Set(selectedItems);
+                                if (next.has(item.id)) next.delete(item.id);
+                                else next.add(item.id);
+                                setSelectedItems(next);
+                              }}
+                              style={{
+                                ...styles.checklistItem,
+                                backgroundColor: isSelected ? '#1E293B' : 'transparent',
+                                borderLeft: isSelected ? '3px solid #F59E0B' : '3px solid transparent',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {/* Sourced indicator */}
+                              <div style={{
+                                width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0,
+                                backgroundColor: isSecured ? '#10B981' : 'transparent',
+                                border: isSecured ? '1px solid #10B981' : '1px solid #374151',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '9px', color: '#fff', lineHeight: 1
+                              }}>
+                                {isSecured ? '✓' : ''}
+                              </div>
+
+                              {/* Item Name + detail link */}
+                              <div
+                                style={{
+                                  ...styles.checklistItemName,
+                                  fontStyle: allDone ? 'italic' : 'normal',
+                                  color: allDone ? '#6B728099' : '#E5E7EB',
+                                  display: 'flex', alignItems: 'center', gap: '4px'
+                                }}
+                              >
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                <span
+                                  title="Equipment details"
+                                  onClick={(e) => { e.stopPropagation(); onOpenEquipment(item.equipmentId); }}
+                                  style={{ cursor: 'pointer', fontSize: '10px', color: '#4B5563', flexShrink: 0, lineHeight: 1 }}
+                                  onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                  onMouseLeave={(e) => e.target.style.color = '#4B5563'}
+                                >↗</span>
+                              </div>
+
+                              {/* Source */}
+                              <EditableSelect
+                                value={item.source || ''}
+                                onChange={(val) => onUpdateSource(item.id, val)}
+                                options={sourceOptions}
+                                placeholder="Source"
+                                style={{ ...styles.compactSelect, borderColor: isSecured ? '#10B98144' : '#EF444466' }}
+                              />
+
+                              {/* Case (implies Packed) */}
+                              <EditableSelect
+                                value={item.caseId || ''}
+                                onChange={(val) => onUpdateCase(item.id, val || null)}
+                                onAddNew={(name) => onQuickCreateCase(item.id, name)}
+                                options={cases.map(c => ({ value: c.id, label: c.name }))}
+                                placeholder="Case"
+                                style={{ ...styles.compactSelect, borderColor: isPacked ? '#10B98144' : '#EF444466' }}
+                              />
+
+                              {/* On Its Way */}
+                              <label title="On Its Way" style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '2px', flexShrink: 0 }}>
+                                <input
+                                  type="checkbox"
+                                  checked={item.onItsWay || false}
+                                  onChange={(e) => onUpdateStatus(item.id, 'onItsWay', e.target.checked)}
+                                  style={{ width: '14px', height: '14px', cursor: 'pointer', accentColor: '#10B981' }}
+                                />
+                                <span style={{ fontSize: '9px', color: '#6B7280' }}>✈</span>
+                              </label>
+
+                              {/* Qty: Total then breakdown */}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                                <span style={styles.qtyTotal}>{item.qty + item.spareCount}</span>
+                                <span style={{ width: '4px' }} />
+                                <input
+                                  type="number"
+                                  title="Qty"
+                                  style={styles.compactInput}
+                                  value={item.qty}
+                                  min="0"
+                                  onChange={(e) => onUpdateQty(item.id, parseInt(e.target.value) || 0, item.spareCount)}
+                                />
+                                <span style={{ fontSize: '9px', color: '#4B5563' }}>+</span>
+                                <input
+                                  type="number"
+                                  title="Spares"
+                                  style={styles.compactInputSpares}
+                                  value={item.spareCount}
+                                  min="0"
+                                  onChange={(e) => onUpdateQty(item.id, item.qty, parseInt(e.target.value) || 0)}
+                                />
+                              </div>
+
+                              {/* Remove button */}
+                              <button
+                                title="Remove item"
+                                onClick={() => onRemoveItem(item.id)}
+                                style={{
+                                  backgroundColor: 'transparent',
+                                  border: '1px solid #374151',
+                                  color: '#6B7280',
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  cursor: 'pointer',
+                                  fontSize: '11px',
+                                  lineHeight: '1'
+                                }}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          );
+                        })}
+                            </React.Fragment>
+                          ));
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Add Item Modal */}
+          {showAddModal && (
+            <div style={styles.overlay} onClick={() => { setShowAddModal(false); setAddSearch(''); }}>
+              <div style={{ ...styles.modal, maxWidth: '500px', maxHeight: '70vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <h3 style={styles.sectionTitle}>Add Equipment to {activePhase} Checklist</h3>
+                  <button style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '20px', cursor: 'pointer' }} onClick={() => { setShowAddModal(false); setAddSearch(''); }}>×</button>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search equipment..."
+                  value={addSearch}
+                  onChange={(e) => setAddSearch(e.target.value)}
+                  style={{ ...styles.input, marginBottom: '12px' }}
+                />
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {availableEquipment.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: '#6B7280', padding: '20px' }}>
+                      {addSearch ? 'No matching equipment found' : 'All equipment is already on this checklist'}
+                    </div>
+                  ) : (
+                    availableEquipment.map(equip => (
+                      <div
+                        key={equip.id}
+                        onClick={() => { onAddItem(equip.id); setShowAddModal(false); setAddSearch(''); }}
+                        style={{
+                          padding: '10px 12px',
+                          cursor: 'pointer',
+                          borderBottom: '1px solid #1F2937',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'background-color 0.15s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1F2937'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <span style={{ fontSize: '13px', color: '#E5E7EB' }}>{equip.name}</span>
+                        <span style={{ fontSize: '11px', color: '#6B7280' }}>{equip.category}</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Tab 3: Cases View
+    function CasesTab({ activeProduction, cases, checklist, equipment, onSaveCase, onDeleteCase, onRefresh, onSelectEquipment }) {
+      const [form, setForm] = React.useState(null);
+      const [saving, setSaving] = React.useState(false);
+      const [photoViewer, setPhotoViewer] = React.useState(null);
+
+      const getCaseContents = (caseId) => {
+        return checklist
+          .filter(item => item.caseId === caseId && item.equipmentId)
+          .map(item => {
+            const equip = equipment.find(e => e.id === item.equipmentId);
+            return equip || { name: 'Unknown' };
+          });
+      };
+
+      const unassignedItems = checklist
+        .filter(item => !item.caseId && item.equipmentId)
+        .map(item => {
+          const equip = equipment.find(e => e.id === item.equipmentId);
+          return equip || { name: 'Unknown' };
+        });
+
+      const handleSubmit = async () => {
+        if (!form.name?.trim()) return;
+        setSaving(true);
+        await onSaveCase(form);
+        setSaving(false);
+        setForm(null);
+      };
+
+      return (
+        <div>
+          <div style={styles.section}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={styles.sectionTitle}>🧳 Transport Cases</h3>
+                <div style={styles.contextIndicator}>
+                  Scope: {activeProduction?.name || 'No Active Production'}
+                </div>
+              </div>
+              <button style={styles.button} onClick={() => setForm({ name: '', description: '' })}>+ New Case</button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+            {cases.map(caseItem => {
+              const contents = getCaseContents(caseItem.id);
+              const packingItem = checklist.find(item => item.caseId === caseItem.id && item.packingPhoto);
+              const packingPhoto = packingItem?.packingPhoto || null;
+
+              return (
+                <div key={caseItem.id} style={{ ...styles.card, margin: 0 }}>
+                  <div style={{ marginBottom: '8px' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '4px' }}>{caseItem.name}</div>
+                    {caseItem.description && (
+                      <div style={{ fontSize: '12px', color: '#9CA3AF' }}>
+                        {caseItem.description}
+                      </div>
+                    )}
+                  </div>
+
+                  {(caseItem.exteriorPhoto || packingPhoto) && (
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                      {caseItem.exteriorPhoto && (
+                        <div style={{ textAlign: 'center', position: 'relative' }}>
+                          <div style={{ width: '160px', height: '160px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                            onClick={() => setPhotoViewer({ url: caseItem.exteriorPhoto, label: caseItem.name + ' — Exterior' })}>
+                            <img src={caseItem.exteriorPhoto} alt="Exterior" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
+                          </div>
+                          <button onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Remove exterior photo?')) return;
+                            try {
+                              await deleteAttachment('Cases', caseItem.id, 'Exterior Photo');
+                              if (onRefresh) await onRefresh();
+                            } catch (err) { alert('Delete failed: ' + err.message); }
+                          }} style={{
+                            position: 'absolute', top: '4px', right: '4px', width: '22px', height: '22px',
+                            borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', color: '#EF4444',
+                            border: '1px solid #EF4444', cursor: 'pointer', fontSize: '13px', lineHeight: '1',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }} title="Remove photo">×</button>
+                          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Exterior</div>
+                        </div>
+                      )}
+                      {packingPhoto && (
+                        <div style={{ textAlign: 'center', position: 'relative' }}>
+                          <div style={{ width: '160px', height: '160px', borderRadius: '6px', overflow: 'hidden', backgroundColor: '#0D0F13', border: '1px solid #1F2937', cursor: 'pointer' }}
+                            onClick={() => setPhotoViewer({ url: packingPhoto, label: caseItem.name + ' — Packing' })}>
+                            <img src={packingPhoto} alt="Packing" style={{ width: '100%', height: '100%', objectFit: 'contain' }} title="Click to enlarge" />
+                          </div>
+                          <button onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm('Remove packing photo?')) return;
+                            try {
+                              await deleteAttachment('ProductionChecklist', packingItem.id, 'Packing Photo');
+                              if (onRefresh) await onRefresh();
+                            } catch (err) { alert('Delete failed: ' + err.message); }
+                          }} style={{
+                            position: 'absolute', top: '4px', right: '4px', width: '22px', height: '22px',
+                            borderRadius: '50%', backgroundColor: 'rgba(0,0,0,0.7)', color: '#EF4444',
+                            border: '1px solid #EF4444', cursor: 'pointer', fontSize: '13px', lineHeight: '1',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }} title="Remove photo">×</button>
+                          <div style={{ fontSize: '10px', color: '#6B7280', marginTop: '3px' }}>Packing</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {contents.length > 0 && (
+                    <div style={{ fontSize: '12px', marginBottom: '12px' }}>
+                      <div style={{ fontWeight: '500', marginBottom: '6px' }}>Contents ({contents.length}):</div>
+                      {contents.map((item, idx) => (
+                        <div key={idx}
+                          style={{ color: '#D1D5DB', cursor: item.id ? 'pointer' : 'default', padding: '2px 0', display: 'flex', alignItems: 'center', gap: '6px' }}
+                          onClick={() => item.id && onSelectEquipment && onSelectEquipment(item)}
+                          onMouseEnter={(e) => { if (item.id) e.currentTarget.style.color = '#F59E0B'; }}
+                          onMouseLeave={(e) => { if (item.id) e.currentTarget.style.color = '#D1D5DB'; }}
+                        >
+                          ✓ {item.name}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <button style={{ ...styles.buttonSecondary, padding: '4px 10px', fontSize: '11px' }} onClick={() => setForm({ ...caseItem })}>Edit</button>
+                    <button style={{ ...styles.buttonDanger, padding: '4px 10px', fontSize: '11px' }} onClick={() => onDeleteCase(caseItem.id)}>Delete</button>
+                    <label style={{ ...styles.buttonSecondary, padding: '4px 10px', fontSize: '11px', marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      📷 Photo
+                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const checklistItem = checklist.find(item => item.caseId === caseItem.id);
+                        if (!checklistItem) { alert('No checklist items linked to this case for the active production.'); return; }
+                        try {
+                          e.target.closest('label').textContent = 'Uploading...';
+                          await uploadAttachment('ProductionChecklist', checklistItem.id, 'Packing Photo', file);
+                          if (onRefresh) await onRefresh();
+                        } catch (err) {
+                          alert('Upload failed: ' + err.message);
+                        }
+                        e.target.value = '';
+                      }} />
+                    </label>
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+
+            {cases.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '32px', color: '#6B7280' }}>
+                No cases yet. Create one to organize your equipment.
+              </div>
+            )}
+          </div>
+
+          {unassignedItems.length > 0 && (
+            <div style={{ ...styles.section, borderLeft: '4px solid #EF4444' }}>
+              <h3 style={{ ...styles.sectionTitle, marginTop: 0, color: '#EF4444' }}>⚠️ Unassigned Items ({unassignedItems.length})</h3>
+              {unassignedItems.map((item, idx) => (
+                <div key={idx}
+                  style={{ padding: '4px 8px', color: '#D1D5DB', fontSize: '13px', cursor: item.id ? 'pointer' : 'default' }}
+                  onClick={() => item.id && onSelectEquipment && onSelectEquipment(item)}
+                  onMouseEnter={(e) => { if (item.id) e.currentTarget.style.color = '#F59E0B'; }}
+                  onMouseLeave={(e) => { if (item.id) e.currentTarget.style.color = '#D1D5DB'; }}
+                >
+                  {item.name}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Case Create/Edit Modal */}
+          {form !== null && (
+            <div style={styles.modal} onClick={() => setForm(null)}>
+              <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                <h3 style={{ marginTop: 0, marginBottom: '20px' }}>
+                  {form.id ? 'Edit Case' : 'New Case'}
+                </h3>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Case Name *</label>
+                  <input
+                    type="text"
+                    style={styles.input}
+                    placeholder="e.g. Pelican 1610 - Camera Kit"
+                    value={form.name || ''}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    autoFocus
+                  />
+                </div>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Description</label>
+                  <textarea
+                    style={{ ...styles.input, minHeight: '80px', resize: 'vertical' }}
+                    placeholder="Case dimensions, weight limit, notes..."
+                    value={form.description || ''}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
+                  <button style={styles.buttonSecondary} onClick={() => setForm(null)}>Cancel</button>
+                  <button
+                    style={{
+                      ...styles.button,
+                      opacity: !form.name?.trim() || saving ? 0.5 : 1
+                    }}
+                    onClick={handleSubmit}
+                    disabled={!form.name?.trim() || saving}
+                  >
+                    {saving ? 'Saving...' : (form.id ? 'Update Case' : 'Create Case')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Photo Lightbox */}
+          {photoViewer && (
+            <div style={{
+              position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 10000, cursor: 'pointer'
+            }} onClick={() => setPhotoViewer(null)}>
+              <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <div style={{ color: '#E5E7EB', fontSize: '14px', fontWeight: '500' }}>{photoViewer.label}</div>
+                  <button
+                    onClick={() => setPhotoViewer(null)}
+                    style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '24px', cursor: 'pointer', padding: '0 4px' }}
+                  >×</button>
+                </div>
+                <img
+                  src={photoViewer.url}
+                  alt={photoViewer.label}
+                  style={{ maxWidth: '90vw', maxHeight: 'calc(90vh - 40px)', borderRadius: '8px', objectFit: 'contain' }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Tab 5: Equipment List View
+    function EquipmentTab({ equipment, onSelectEquipment }) {
+      const [filterType, setFilterType] = React.useState('all');
+      const [searchTerm, setSearchTerm] = React.useState('');
+
+      const filtered = equipment.filter(eq => {
+        let typeMatch = true;
+        if (filterType === 'travel') typeMatch = eq.travelKit;
+        if (filterType === 'permanent') typeMatch = eq.permanentInstall;
+
+        const searchMatch = eq.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (eq.fullName && eq.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          eq.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+        return typeMatch && searchMatch;
+      });
+
+      return (
+        <div>
+          <div style={styles.section}>
+            <h3 style={styles.sectionTitle}>🔧 Global Equipment Library</h3>
+            <div style={styles.sectionSubtitle}>Equipment definitions shared across all studios and productions.</div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <input
+                type="text"
+                placeholder="Search equipment..."
+                style={styles.input}
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              {['all', 'travel', 'permanent'].map(type => (
+                <button
+                  key={type}
+                  style={{
+                    ...styles.buttonSecondary,
+                    backgroundColor: filterType === type ? '#F59E0B' : 'transparent',
+                    color: filterType === type ? '#000' : '#E5E7EB'
+                  }}
+                  onClick={() => setFilterType(type)}
+                >
+                  {type === 'all' ? 'All Equipment' : type === 'travel' ? 'Travel Kit' : 'Permanent Install'}
+                </button>
+              ))}
+            </div>
+
+            <div style={styles.grid}>
+              {filtered.map(eq => (
+                <div
+                  key={eq.id}
+                  style={styles.card}
+                  onClick={() => onSelectEquipment(eq)}
+                >
+                  <div style={{
+                    width: '100%',
+                    paddingBottom: '100%',
+                    position: 'relative',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '6px',
+                    marginBottom: '8px',
+                    overflow: 'hidden'
+                  }}>
+                    {eq.photo ? (
+                      <img src={eq.photo} alt={eq.name} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'contain', borderRadius: '6px' }} />
+                    ) : (
+                      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#0D0F13', color: '#6B7280' }}>📷</div>
+                    )}
+                  </div>
+
+                  <div style={{ fontWeight: '600', marginBottom: '4px', fontSize: '12px' }}>{eq.name}</div>
+                  <div style={{ fontSize: '10px', color: '#9CA3AF', marginBottom: '6px' }}>
+                    {eq.category}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {eq.travelKit && <span style={styles.badge}>Travel Kit</span>}
+                    {eq.permanentInstall && <span style={{ ...styles.badge, ...styles.badgeGreen }}>Permanent</span>}
+                    {eq.alternate && <span style={{ ...styles.badge, backgroundColor: '#7C3AED22', color: '#A78BFA' }}>Alternate</span>}
+                    {eq.generalized && <span style={{ ...styles.badge, backgroundColor: '#065F4622', color: '#6EE7B7' }}>Generalized</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filtered.length === 0 && (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#6B7280' }}>
+                No equipment found matching your filters.
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // Main App Component
+    function ReFrameProductionManager() {
+      const [activeTab, setActiveTab] = React.useState('travel');
+      const [loading, setLoading] = React.useState(true);
+      const [error, setError] = React.useState(null);
+
+      const [equipment, setEquipment] = React.useState([]);
+      const [studios, setStudios] = React.useState([]);
+      const [cases, setCases] = React.useState([]);
+      const [studioEquipment, setStudioEquipment] = React.useState([]);
+      const [checklist, setChecklist] = React.useState([]);
+      const [contacts, setContacts] = React.useState([]);
+
+      const [activeProduction, setActiveProduction] = React.useState(null);
+      const [activePhase, setActivePhase] = React.useState('Outbound');
+      const [productionForm, setProductionForm] = React.useState(null);
+      const [equipmentDetail, setEquipmentDetail] = React.useState(null);
+      const [toast, setToast] = React.useState(null);
+      const [loadingAction, setLoadingAction] = React.useState(null);
+      const [lastSync, setLastSync] = React.useState(new Date());
+
+      // Initial data load
+      React.useEffect(() => {
+        loadData();
+      }, []);
+
+      // Load checklist when production or phase changes
+      React.useEffect(() => {
+        if (activeProduction) {
+          loadChecklist(activeProduction.id, activePhase);
+        }
+      }, [activeProduction, activePhase]);
+
+      const loadData = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+
+          const [equipmentRecords, studioRecords, caseRecords, studioEquipmentRecords, contactRecords] = await Promise.all([
+            fetchTable(CONFIG.TABLES.equipment),
+            fetchTable(CONFIG.TABLES.studios),
+            fetchTable(CONFIG.TABLES.cases),
+            fetchTable(CONFIG.TABLES.studioEquipment),
+            fetchTable(CONFIG.TABLES.contacts)
+          ]);
+
+          const transformedEquipment = equipmentRecords.map(transformEquipment);
+          const transformedStudios = studioRecords.map(transformStudio);
+          const transformedCases = caseRecords.map(transformCase);
+          const transformedContacts = contactRecords.map(transformContact);
+
+          setEquipment(transformedEquipment);
+          setStudios(transformedStudios);
+          setCases(transformedCases);
+          setStudioEquipment(studioEquipmentRecords);
+          setContacts(transformedContacts);
+
+          const activeStudio = transformedStudios.find(s => s.active);
+          if (activeStudio) {
+            setActiveProduction(activeStudio);
+          }
+
+          setLastSync(new Date());
+        } catch (err) {
+          console.error('Load failed:', err);
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const loadChecklist = async (studioId, phase = 'Outbound') => {
+        try {
+          const records = await fetchTable(CONFIG.TABLES.productionChecklist);
+          const filtered = records
+            .filter(r => r.fields['Studio']?.[0] === studioId)
+            .filter(r => (r.fields['Phase'] || 'Outbound') === phase)
+            .map(transformChecklist);
+          setChecklist(filtered);
+        } catch (err) {
+          console.error('Checklist load failed:', err);
+        }
+      };
+
+      const handleSetActive = async (production) => {
+        try {
+          const updatesToMake = studios.map(s => ({
+            id: s.id,
+            fields: { 'Active': s.id === production.id }
+          }));
+
+          for (const update of updatesToMake) {
+            await updateRecord(CONFIG.TABLES.studios, update.id, update.fields);
+          }
+
+          setStudios(prev => prev.map(s => ({
+            ...s,
+            active: s.id === production.id
+          })));
+
+          setActiveProduction(production);
+          setActivePhase('Outbound');
+          setActiveTab('checklist');
+          showToast('Production activated', 'success');
+        } catch (err) {
+          console.error('Update failed:', err);
+          showToast('Failed to set active production', 'error');
+        }
+      };
+
+      const handleSaveProduction = async (form) => {
+        const fields = {};
+        if (form.name !== undefined) fields['Name'] = form.name.trim ? form.name.trim() : form.name;
+        if (form.code !== undefined) fields['Studio Code'] = form.code || '';
+        if (form.type !== undefined && form.type) fields['Type'] = form.type;
+        if (form.client !== undefined) fields['Client'] = form.client || '';
+        if (form.event !== undefined) fields['Event'] = form.event || '';
+        if (form.city !== undefined) fields['City'] = form.city || '';
+        if (form.venue !== undefined) fields['Venue'] = form.venue || '';
+        if (form.venueAddress !== undefined) fields['Venue Address'] = form.venueAddress || '';
+        if (form.startDate !== undefined) fields['Start Date'] = form.startDate || null;
+        if (form.endDate !== undefined) fields['End Date'] = form.endDate || null;
+        // 'Load-in' field removed — does not exist in Airtable base
+        // if (form.schedule !== undefined) fields['Load-in'] = form.schedule || '';
+        if (form.localContact !== undefined) fields['Local Contact'] = form.localContact || '';
+        if (form.cameraCount !== undefined && form.cameraCount) fields['Camera Count'] = form.cameraCount;
+        if (form.hotelName !== undefined) fields['Hotel Name'] = form.hotelName || '';
+        if (form.hotelAddress !== undefined) fields['Hotel Address'] = form.hotelAddress || '';
+        if (form.hotelConfirmation !== undefined) fields['Hotel Confirmation'] = form.hotelConfirmation || '';
+        if (form.shippingAddress !== undefined) fields['Shipping Address'] = form.shippingAddress || '';
+        if (form.shippingTracking !== undefined) fields['Shipping Tracking'] = form.shippingTracking || '';
+        if (form.shippingNotes !== undefined) fields['Shipping Notes'] = form.shippingNotes || '';
+        if (form.flights !== undefined) fields['Flights'] = form.flights || '';
+        if (form.crew !== undefined) fields['Crew'] = form.crew || '';
+        if (form.notes !== undefined) fields['Notes'] = form.notes || '';
+        if (form.cardFields !== undefined) fields['Card Display'] = form.cardFields || '';
+        if (form.contactIds !== undefined) fields['Contacts'] = form.contactIds;
+
+        await updateRecord(CONFIG.TABLES.studios, form.id, fields);
+        const freshStudios = (await fetchTable(CONFIG.TABLES.studios)).map(transformStudio);
+        setStudios(freshStudios);
+        const freshContacts = (await fetchTable(CONFIG.TABLES.contacts)).map(transformContact);
+        setContacts(freshContacts);
+        if (activeProduction) {
+          const updated = freshStudios.find(s => s.id === activeProduction.id);
+          if (updated) setActiveProduction(updated);
+        }
+        showToast('Production updated', 'success');
+      };
+
+      const handleDeleteProduction = async (studioId) => {
+        if (!window.confirm('Delete this production?')) return;
+
+        try {
+          await deleteRecord(CONFIG.TABLES.studios, studioId);
+          setStudios(prev => prev.filter(s => s.id !== studioId));
+          if (activeProduction?.id === studioId) {
+            setActiveProduction(null);
+          }
+          showToast('Production deleted', 'success');
+        } catch (err) {
+          console.error('Delete failed:', err);
+          showToast('Failed to delete production', 'error');
+        }
+      };
+
+      const handleResetAll = async () => {
+        try {
+          const itemsToReset = checklist.filter(item => item.source || item.onItsWay);
+          if (itemsToReset.length === 0) return;
+
+          setChecklist(prev => prev.map(item => ({ ...item, source: '', onItsWay: false })));
+
+          const updates = itemsToReset.map(item => ({
+            id: item.id,
+            fields: { 'Source': null, 'On Its Way': false }
+          }));
+
+          await batchUpdateRecords(CONFIG.TABLES.productionChecklist, updates);
+          showToast(`Reset ${itemsToReset.length} items`, 'success');
+        } catch (err) {
+          console.error('Reset all failed:', err);
+          showToast('Failed to reset items', 'error');
+          if (activeProduction) loadChecklist(activeProduction.id, activePhase);
+        }
+      };
+
+      const handleUpdateStatus = async (checklistId, field, value) => {
+        try {
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, [field]: value } : item
+          ));
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, { 'On Its Way': value });
+        } catch (err) {
+          console.error('Status update failed:', err);
+          showToast('Failed to update status', 'error');
+        }
+      };
+
+      const handleUpdateSource = async (checklistId, source) => {
+        try {
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, source } : item
+          ));
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, {
+            'Source': source || null
+          });
+        } catch (err) {
+          console.error('Source update failed:', err);
+          showToast('Failed to update source', 'error');
+        }
+      };
+
+      const handleBulkUpdate = async (itemIds, field, value) => {
+        try {
+          setChecklist(prev => prev.map(item => {
+            if (!itemIds.includes(item.id)) return item;
+            return { ...item, [field]: value };
+          }));
+
+          const updates = itemIds.map(id => {
+            const fields = {};
+            if (field === 'source') fields['Source'] = value || null;
+            if (field === 'caseId') fields['Case'] = value ? [value] : [];
+            if (field === 'onItsWay') fields['On Its Way'] = value;
+            return { id, fields };
+          });
+
+          await batchUpdateRecords(CONFIG.TABLES.productionChecklist, updates);
+          showToast(`Updated ${itemIds.length} items`, 'success');
+        } catch (err) {
+          console.error('Bulk update failed:', err);
+          showToast('Failed to bulk update', 'error');
+          if (activeProduction) loadChecklist(activeProduction.id, activePhase);
+        }
+      };
+
+      const handleUpdateCase = async (checklistId, caseId) => {
+        try {
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, caseId } : item
+          ));
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, {
+            'Case': caseId ? [caseId] : []
+          });
+        } catch (err) {
+          console.error('Update failed:', err);
+          showToast('Failed to update case', 'error');
+        }
+      };
+
+      const handleQuickCreateCase = async (checklistId, caseName) => {
+        try {
+          const newRecord = await createRecord(CONFIG.TABLES.cases, { 'Name': caseName });
+          const newCase = transformCase(newRecord);
+          setCases(prev => [...prev, newCase]);
+
+          // Assign the new case to this checklist item
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, caseId: newCase.id } : item
+          ));
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, {
+            'Case': [newCase.id]
+          });
+          showToast(`Case "${caseName}" created & assigned`, 'success');
+        } catch (err) {
+          console.error('Quick create case failed:', err);
+          showToast('Failed to create case', 'error');
+        }
+      };
+
+      const handleUpdateQty = async (checklistId, qty, spareCount) => {
+        try {
+          const item = checklist.find(i => i.id === checklistId);
+          const newQty = qty !== undefined ? qty : item.qty;
+          const newSpares = spareCount !== undefined ? spareCount : item.spareCount;
+
+          setChecklist(prev => prev.map(i =>
+            i.id === checklistId ? { ...i, qty: newQty, spareCount: newSpares } : i
+          ));
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, {
+            'Quantity': newQty,
+            'Spare Count': newSpares
+          });
+        } catch (err) {
+          console.error('Update failed:', err);
+          showToast('Failed to update quantity', 'error');
+        }
+      };
+
+      // Case CRUD handlers
+      const handleCaseSave = async (caseData) => {
+        try {
+          const fields = {
+            'Name': caseData.name,
+            'Description': caseData.description || ''
+          };
+
+          if (caseData.id) {
+            await updateRecord(CONFIG.TABLES.cases, caseData.id, fields);
+            setCases(prev => prev.map(c =>
+              c.id === caseData.id ? { ...c, name: caseData.name, description: caseData.description } : c
+            ));
+            showToast('Case updated', 'success');
+          } else {
+            const newRecord = await createRecord(CONFIG.TABLES.cases, fields);
+            setCases(prev => [...prev, transformCase(newRecord)]);
+            showToast('Case created', 'success');
+          }
+        } catch (err) {
+          console.error('Case save failed:', err);
+          showToast('Failed to save case', 'error');
+        }
+      };
+
+      const handleDeleteCase = async (caseId) => {
+        if (!window.confirm('Delete this case? Equipment will be unassigned.')) return;
+        try {
+          await deleteRecord(CONFIG.TABLES.cases, caseId);
+          setCases(prev => prev.filter(c => c.id !== caseId));
+          setChecklist(prev => prev.map(item =>
+            item.caseId === caseId ? { ...item, caseId: null } : item
+          ));
+          showToast('Case deleted', 'success');
+        } catch (err) {
+          console.error('Delete failed:', err);
+          showToast('Failed to delete case', 'error');
+        }
+      };
+
+      const handleInitializeChecklist = async () => {
+        if (!activeProduction || loadingAction) return;
+        setLoadingAction('initialize');
+
+        try {
+          const camCount = activeProduction.cameraCount || '2';
+          const isTravel = activeProduction.type === 'Travel' || activeProduction.type === 'travel';
+          let itemsToInit = [];
+
+          if (isTravel) {
+            itemsToInit = equipment.map(item => ({
+              equipId: item.id,
+              qty: camCount === '3' ? item.qty3CamTravel : item.qty2CamTravel,
+              spares: item.spareCount
+            })).filter(item => item.qty > 0);
+          } else {
+            const studioEquip = studioEquipment.filter(
+              se => se.fields['Studio']?.[0] === activeProduction.id
+            );
+            itemsToInit = studioEquip.map(se => {
+              const equipId = se.fields['Equipment']?.[0];
+              const equip = equipment.find(e => e.id === equipId);
+              if (!equip) return null;
+              return {
+                equipId: equip.id,
+                qty: camCount === '3' ? equip.qty3CamStudio : equip.qty2CamStudio,
+                spares: equip.spareCount
+              };
+            }).filter(Boolean).filter(item => item.qty > 0);
+          }
+
+          for (const item of itemsToInit) {
+            await createRecord(CONFIG.TABLES.productionChecklist, {
+              'Equipment': [item.equipId],
+              'Studio': [activeProduction.id],
+              'Phase': 'Outbound',
+              'On Its Way': false,
+              'Quantity': item.qty,
+              'Spare Count': item.spares
+            });
+          }
+
+          await loadChecklist(activeProduction.id, activePhase);
+          showToast(`Checklist initialized (${itemsToInit.length} items)`, 'success');
+        } catch (err) {
+          console.error('Initialize failed:', err);
+          showToast('Failed to initialize checklist', 'error');
+        } finally {
+          setLoadingAction(null);
+        }
+      };
+
+      const handleCreateReturnChecklist = async () => {
+        if (!activeProduction || loadingAction) return;
+        setLoadingAction('createReturn');
+
+        try {
+          setLoading(true);
+          // Need to load outbound items specifically
+          const records = await fetchTable(CONFIG.TABLES.productionChecklist);
+          const outboundItems = records
+            .filter(r => r.fields['Studio']?.[0] === activeProduction.id)
+            .filter(r => (r.fields['Phase'] || 'Outbound') === 'Outbound')
+            .map(transformChecklist);
+
+          if (outboundItems.length === 0) {
+            showToast('No outbound items to duplicate', 'error');
+            setLoading(false);
+            return;
+          }
+
+          for (const item of outboundItems) {
+            await createRecord(CONFIG.TABLES.productionChecklist, {
+              'Equipment': [item.equipmentId],
+              'Studio': [activeProduction.id],
+              'Phase': 'Return',
+              'On Its Way': false,
+              'Case': item.caseId ? [item.caseId] : null,
+              'Quantity': item.qty,
+              'Spare Count': item.spareCount
+            });
+          }
+
+          setActivePhase('Return');
+          await loadChecklist(activeProduction.id, 'Return');
+          showToast(`Return checklist created (${outboundItems.length} items)`, 'success');
+        } catch (err) {
+          console.error('Create return checklist failed:', err);
+          showToast('Failed to create return checklist', 'error');
+        } finally {
+          setLoading(false);
+          setLoadingAction(null);
+        }
+      };
+
+      const handleAddChecklistItem = async (equipmentId) => {
+        if (!activeProduction) return;
+
+        try {
+          const equip = equipment.find(e => e.id === equipmentId);
+          if (!equip) return;
+
+          const camCount = activeProduction.cameraCount || '2';
+          const isTravel = activeProduction.type === 'Travel' || activeProduction.type === 'travel';
+
+          const configQty = isTravel
+            ? (camCount === '3' ? equip.qty3CamTravel : equip.qty2CamTravel)
+            : (camCount === '3' ? equip.qty3CamStudio : equip.qty2CamStudio);
+
+          await createRecord(CONFIG.TABLES.productionChecklist, {
+            'Equipment': [equipmentId],
+            'Studio': [activeProduction.id],
+            'Phase': activePhase,
+            'On Its Way': false,
+            'Quantity': configQty || 1,
+            'Spare Count': equip.spareCount || 0
+          });
+
+          await loadChecklist(activeProduction.id, activePhase);
+          showToast(`${equip.name} added`, 'success');
+        } catch (err) {
+          console.error('Add item failed:', err);
+          showToast('Failed to add item', 'error');
+        }
+      };
+
+      const handleRemoveChecklistItem = async (checklistId) => {
+        try {
+          await deleteRecord(CONFIG.TABLES.productionChecklist, checklistId);
+          setChecklist(prev => prev.filter(item => item.id !== checklistId));
+          showToast('Item removed', 'success');
+        } catch (err) {
+          console.error('Remove item failed:', err);
+          showToast('Failed to remove item', 'error');
+        }
+      };
+
+      const handleProductionSave = async () => {
+        await loadData();
+        setProductionForm(null);
+        showToast('Production saved', 'success');
+      };
+
+      const handleEquipmentSave = async () => {
+        await loadData();
+        setEquipmentDetail(null);
+        showToast('Equipment saved', 'success');
+      };
+
+      const showToast = (message, type = 'info') => {
+        setToast({ message, type });
+      };
+
+      const formatTime = (date) => {
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      };
+
+      // Loading state
+      if (loading) {
+        return (
+          <div style={styles.body}>
+            <style>{`
+              @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap');
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+              body { margin: 0; padding: 0; background: #0D0F13; }
+            `}</style>
+            <div style={styles.container}>
+              <div style={styles.loading}>
+                <div style={styles.spinner} />
+                <div style={{ color: '#9CA3AF' }}>Loading ReFrame Production Manager...</div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      // Error state
+      if (error) {
+        return (
+          <div style={styles.body}>
+            <style>{`
+              @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap');
+              body { margin: 0; padding: 0; background: #0D0F13; }
+            `}</style>
+            <div style={styles.container}>
+              <div style={styles.error}>
+                <div style={styles.errorTitle}>Connection Error</div>
+                <div style={{ marginBottom: '16px' }}>{error}</div>
+                <button style={styles.button} onClick={() => location.reload()}>Retry</button>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div style={styles.body}>
+          <style>{`
+            @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap');
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+            body { margin: 0; padding: 0; background: #0D0F13; }
+            * { box-sizing: border-box; }
+            button:hover { opacity: 0.9; }
+            select { background-color: #13151A; color: #E5E7EB; border: 1px solid #2A2D35; padding: 10px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; cursor: pointer; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236B7280'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 28px; }
+            select option { background-color: #13151A; color: #E5E7EB; }
+            textarea { background-color: #13151A; color: #E5E7EB; border: 1px solid #2A2D35; padding: 10px 12px; border-radius: 8px; font-family: 'DM Sans', sans-serif; }
+            input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+            input[type=number] { -moz-appearance: textfield; }
+          `}</style>
+
+          <div style={styles.container}>
+            {/* Header */}
+            <div style={styles.header}>
+              <div style={styles.logo}>
+                <div style={styles.logoSquare}>R</div>
+                <div style={styles.logoText}>
+                  <div style={styles.logoTitle}>ReFrame</div>
+                  <div style={styles.logoSubtitle}>Production Manager</div>
+                </div>
+              </div>
+
+              <div style={styles.headerRight}>
+                <div style={styles.productionInfo}>
+                  <div style={styles.productionName}>
+                    {activeProduction?.name || 'No Active Production'}
+                  </div>
+                  <div style={styles.productionDate}>
+                    {activeProduction?.date ? new Date(activeProduction.date).toLocaleDateString() : ''}
+                  </div>
+                </div>
+                <div>
+                  <div style={styles.syncStatus}>
+                    <span>Last synced: {formatTime(lastSync)}</span>
+                  </div>
+                  <button
+                    style={styles.refreshButton}
+                    onClick={() => loadData()}
+                  >
+                    ↻ Refresh
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div style={styles.tabs}>
+              {[
+                { id: 'travel', name: '✈️ Travel' },
+                { id: 'checklist', name: '✅ Checklist' },
+                { id: 'cases', name: '🧳 Cases' },
+                { id: 'equipment', name: '🔧 Equipment' },
+                { id: 'studios', name: '📍 Studios' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  style={{
+                    ...styles.tab,
+                    ...(activeTab === tab.id && styles.tabActive)
+                  }}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Content */}
+            {activeTab === 'studios' && (
+              <PermStudiosTab
+                studios={studios}
+                studioEquipment={studioEquipment}
+                activeProduction={activeProduction}
+                onActivate={handleSetActive}
+              />
+            )}
+
+            {activeTab === 'travel' && (
+              <TravelTab
+                studios={studios}
+                contacts={contacts}
+                activeProduction={activeProduction}
+                onSetActive={handleSetActive}
+                onEdit={(prod) => setProductionForm(prod)}
+                onDelete={handleDeleteProduction}
+                onCreateNew={() => setProductionForm({})}
+                onSaveProduction={handleSaveProduction}
+                onRefresh={loadData}
+              />
+            )}
+
+            {activeTab === 'checklist' && (
+              <ChecklistTab
+                activeProduction={activeProduction}
+                equipment={equipment}
+                checklist={checklist}
+                cases={cases}
+                studioEquipment={studioEquipment}
+                activePhase={activePhase}
+                onUpdateStatus={handleUpdateStatus}
+                onUpdateCase={handleUpdateCase}
+                onUpdateQty={handleUpdateQty}
+                onUpdateSource={handleUpdateSource}
+                onQuickCreateCase={handleQuickCreateCase}
+                onBulkUpdate={handleBulkUpdate}
+                onInitialize={handleInitializeChecklist}
+                onResetAll={handleResetAll}
+                onCreateReturn={handleCreateReturnChecklist}
+                loadingAction={loadingAction}
+                onAddItem={handleAddChecklistItem}
+                onRemoveItem={handleRemoveChecklistItem}
+                onPhaseChange={setActivePhase}
+                onOpenEquipment={(equipId) => {
+                  const eq = equipment.find(e => e.id === equipId);
+                  if (eq) setEquipmentDetail(eq);
+                }}
+              />
+            )}
+
+            {activeTab === 'cases' && (
+              <CasesTab
+                activeProduction={activeProduction}
+                cases={cases}
+                checklist={checklist}
+                equipment={equipment}
+                onSaveCase={handleCaseSave}
+                onDeleteCase={handleDeleteCase}
+                onRefresh={loadData}
+                onSelectEquipment={(eq) => setEquipmentDetail(eq)}
+              />
+            )}
+
+            {activeTab === 'equipment' && (
+              <EquipmentTab
+                equipment={equipment}
+                onSelectEquipment={(eq) => setEquipmentDetail(eq)}
+              />
+            )}
+          </div>
+
+          {/* Modals */}
+          {productionForm !== null && (
+            <ProductionForm
+              production={productionForm && Object.keys(productionForm).length > 0 ? productionForm : null}
+              onSave={handleProductionSave}
+              onClose={() => setProductionForm(null)}
+            />
+          )}
+
+          {equipmentDetail !== null && (
+            <EquipmentDetailModal
+              equipment={equipmentDetail}
+              allCategories={CATEGORIES}
+              onSave={handleEquipmentSave}
+              onClose={() => setEquipmentDetail(null)}
+            />
+          )}
+
+          {/* Toast */}
+          {toast && (
+            <Toast
+              message={toast.message}
+              type={toast.type}
+              onClose={() => setToast(null)}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // Render the app
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(ReFrameProductionManager));
+  </script>
+</body>
+</html>
