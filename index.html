@@ -48,6 +48,13 @@
 
     const SOURCE_DEFAULTS = ['Owned', 'LensRentals', 'Local Gaffer', 'Amazon'];
 
+    const FLAG_OPTIONS = [
+      { name: 'Need More', color: '#EF4444', icon: '🔴' },
+      { name: 'Pending Repair', color: '#F59E0B', icon: '🟡' },
+      { name: 'Confirming Availability', color: '#3B82F6', icon: '🔵' },
+      { name: 'Needs Replacement', color: '#A855F7', icon: '🟣' }
+    ];
+
     const styles = {
       body: {
         fontFamily: "'DM Sans', sans-serif",
@@ -673,6 +680,8 @@
       spareCount: record.fields['Spare Count'] || 0,
       packingPhoto: record.fields['Packing Photo']?.[0]?.url || null,
       notes: record.fields['Notes'] || '',
+      flag: record.fields['Flag']?.name || record.fields['Flag'] || '',
+      flagNote: record.fields['Flag Note'] || '',
     });
 
     const transformCase = (record) => ({
@@ -1712,12 +1721,13 @@
     }
 
     // Tab 2: Checklist View
-    function ChecklistTab({ activeProduction, equipment, checklist, cases, studioEquipment, activePhase, onUpdateStatus, onUpdateCase, onUpdateQty, onUpdateSource, onQuickCreateCase, onBulkUpdate, onInitialize, onResetAll, onCreateReturn, onAddItem, onRemoveItem, onPhaseChange, onOpenEquipment, loadingAction }) {
+    function ChecklistTab({ activeProduction, equipment, checklist, cases, studioEquipment, activePhase, onUpdateStatus, onUpdateCase, onUpdateQty, onUpdateSource, onUpdateFlag, onUpdateNotes, onQuickCreateCase, onBulkUpdate, onInitialize, onResetAll, onCreateReturn, onAddItem, onRemoveItem, onPhaseChange, onOpenEquipment, loadingAction }) {
       const [expandedCategories, setExpandedCategories] = React.useState({});
       const [showAddModal, setShowAddModal] = React.useState(false);
       const [addSearch, setAddSearch] = React.useState('');
       const [selectedItems, setSelectedItems] = React.useState(new Set());
       const [activeFilter, setActiveFilter] = React.useState(null); // null, 'unsourced', 'unpacked', 'notSent', or a source value like 'source:Own'
+      const [detailItem, setDetailItem] = React.useState(null); // checklist item modal
 
       if (!activeProduction) {
         return (
@@ -1731,6 +1741,7 @@
       const securedCount = checklist.filter(c => c.source && c.source !== '').length;
       const packedCount = checklist.filter(c => !!c.caseId).length;
       const onItsWayCount = checklist.filter(c => c.onItsWay).length;
+      const flaggedCount = checklist.filter(c => !!c.flag).length;
 
       // Clear selections when phase changes
       React.useEffect(() => { setSelectedItems(new Set()); }, [activePhase]);
@@ -1897,6 +1908,11 @@
             {renderProgressBar('Secured', securedCount, totalItems, '#3B82F6')}
             {renderProgressBar('Packed', packedCount, totalItems, '#F59E0B')}
             {renderProgressBar('On Its Way', onItsWayCount, totalItems, '#10B981')}
+            {flaggedCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                <span style={{ color: '#EF4444' }}>🚩 {flaggedCount} Flagged</span>
+              </div>
+            )}
           </div>
 
           {/* Initialize button if no checklist items */}
@@ -2016,6 +2032,7 @@
                     if (activeFilter === 'unsourced') return !merged.source || merged.source === '';
                     if (activeFilter === 'unpacked') return !merged.caseId;
                     if (activeFilter === 'notSent') return !merged.onItsWay;
+                    if (activeFilter === 'flagged') return !!merged.flag;
                     if (activeFilter.startsWith('source:')) return merged.source === activeFilter.slice(7);
                     return true;
                   }).map(c => c.id);
@@ -2027,6 +2044,7 @@
                     {filterBtn('Unsourced', 'unsourced')}
                     {filterBtn('Unpacked', 'unpacked')}
                     {filterBtn('Not Sent', 'notSent')}
+                    {filterBtn('🚩 Flagged', 'flagged')}
                     <span style={{ width: '1px', height: '16px', backgroundColor: '#2A2D35', margin: '0 2px' }} />
                     {uniqueSources.map(src => filterBtn(src, 'source:' + src))}
                     {activeFilter && (
@@ -2066,6 +2084,7 @@
                   if (activeFilter === 'unsourced') return !item.source || item.source === '';
                   if (activeFilter === 'unpacked') return !item.caseId;
                   if (activeFilter === 'notSent') return !item.onItsWay;
+                  if (activeFilter === 'flagged') return !!item.flag;
                   if (activeFilter.startsWith('source:')) return item.source === activeFilter.slice(7);
                   return true;
                 });
@@ -2133,8 +2152,8 @@
                               }}
                               style={{
                                 ...styles.checklistItem,
-                                backgroundColor: isSelected ? '#1E293B' : 'transparent',
-                                borderLeft: isSelected ? '3px solid #F59E0B' : '3px solid transparent',
+                                backgroundColor: isSelected ? '#1E293B' : (item.flag ? (FLAG_OPTIONS.find(f => f.name === item.flag)?.color || '#EF4444') + '08' : 'transparent'),
+                                borderLeft: isSelected ? '3px solid #F59E0B' : item.flag ? '3px solid ' + (FLAG_OPTIONS.find(f => f.name === item.flag)?.color || '#EF4444') : '3px solid transparent',
                                 cursor: 'pointer'
                               }}
                             >
@@ -2149,7 +2168,7 @@
                                 {isSecured ? '✓' : ''}
                               </div>
 
-                              {/* Item Name + detail link */}
+                              {/* Item Name + flag indicator + detail links */}
                               <div
                                 style={{
                                   ...styles.checklistItemName,
@@ -2158,7 +2177,24 @@
                                   display: 'flex', alignItems: 'center', gap: '4px'
                                 }}
                               >
+                                {item.flag && (() => {
+                                  const f = FLAG_OPTIONS.find(fo => fo.name === item.flag);
+                                  return (
+                                    <span
+                                      title={item.flag + (item.flagNote ? ': ' + item.flagNote : '')}
+                                      style={{ fontSize: '10px', flexShrink: 0, cursor: 'pointer' }}
+                                      onClick={(e) => { e.stopPropagation(); setDetailItem(item); }}
+                                    >{f ? f.icon : '🚩'}</span>
+                                  );
+                                })()}
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                <span
+                                  title="Item details & flags"
+                                  onClick={(e) => { e.stopPropagation(); setDetailItem(item); }}
+                                  style={{ cursor: 'pointer', fontSize: '10px', color: '#4B5563', flexShrink: 0, lineHeight: 1 }}
+                                  onMouseEnter={(e) => e.target.style.color = '#F59E0B'}
+                                  onMouseLeave={(e) => e.target.style.color = '#4B5563'}
+                                >✎</span>
                                 <span
                                   title="Equipment details"
                                   onClick={(e) => { e.stopPropagation(); onOpenEquipment(item.equipmentId); }}
@@ -2239,6 +2275,35 @@
                                 ×
                               </button>
                             </div>
+                            {/* Notes row */}
+                            <div style={{ paddingLeft: '26px', paddingRight: '10px', paddingBottom: '4px' }}>
+                              <input
+                                type="text"
+                                placeholder="Add note..."
+                                defaultValue={item.notes || ''}
+                                key={item.id + '-notes-' + (item._notesReset || 0)}
+                                onClick={(e) => e.stopPropagation()}
+                                onBlur={(e) => {
+                                  if (e.target.value !== (item.notes || '')) {
+                                    onUpdateNotes(item.id, e.target.value);
+                                  }
+                                  e.target.style.borderBottom = e.target.value ? '1px solid #1F2937' : '1px solid transparent';
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                                style={{
+                                  width: '100%',
+                                  backgroundColor: 'transparent',
+                                  border: 'none',
+                                  borderBottom: item.notes ? '1px solid #1F2937' : '1px solid transparent',
+                                  color: item.notes ? '#9CA3AF' : '#4B556333',
+                                  fontSize: '11px',
+                                  padding: '2px 0',
+                                  fontFamily: "'DM Sans', sans-serif",
+                                  outline: 'none'
+                                }}
+                                onFocus={(e) => { e.target.style.borderBottom = '1px solid #F59E0B44'; e.target.style.color = '#9CA3AF'; }}
+                              />
+                            </div>
                           );
                         })}
                             </React.Fragment>
@@ -2298,6 +2363,95 @@
               </div>
             </div>
           )}
+
+          {/* Checklist Item Detail Modal (Flag & Notes) */}
+          {detailItem && (() => {
+            const currentItem = checklist.find(c => c.id === detailItem.id) || detailItem;
+            const currentFlag = FLAG_OPTIONS.find(f => f.name === currentItem.flag);
+            return (
+              <div style={styles.overlay} onClick={() => setDetailItem(null)}>
+                <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                    <h3 style={{ ...styles.sectionTitle, margin: 0 }}>{currentItem.name}</h3>
+                    <button style={{ background: 'none', border: 'none', color: '#9CA3AF', fontSize: '20px', cursor: 'pointer' }} onClick={() => setDetailItem(null)}>×</button>
+                  </div>
+
+                  {/* Flag Status */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'block' }}>Flag Status</label>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {FLAG_OPTIONS.map(flag => (
+                        <button
+                          key={flag.name}
+                          onClick={() => {
+                            const newFlag = currentItem.flag === flag.name ? '' : flag.name;
+                            onUpdateFlag(currentItem.id, newFlag);
+                          }}
+                          style={{
+                            padding: '8px 14px',
+                            borderRadius: '8px',
+                            border: currentItem.flag === flag.name ? `2px solid ${flag.color}` : '2px solid #374151',
+                            backgroundColor: currentItem.flag === flag.name ? flag.color + '22' : 'transparent',
+                            color: currentItem.flag === flag.name ? flag.color : '#9CA3AF',
+                            cursor: 'pointer',
+                            fontSize: '13px',
+                            fontFamily: "'DM Sans', sans-serif",
+                            fontWeight: currentItem.flag === flag.name ? '600' : '400',
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          {flag.icon} {flag.name}
+                        </button>
+                      ))}
+                    </div>
+                    {currentFlag && (
+                      <div style={{ marginTop: '8px', fontSize: '12px', color: currentFlag.color }}>
+                        Active: {currentFlag.icon} {currentFlag.name}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Flag Note */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'block' }}>Flag Note</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Need 1 more — rent from LensRentals"
+                      value={currentItem.flagNote || ''}
+                      onChange={(e) => onUpdateFlag(currentItem.id, currentItem.flag, e.target.value)}
+                      style={{
+                        ...styles.input,
+                        borderColor: currentFlag ? currentFlag.color + '44' : '#374151'
+                      }}
+                    />
+                  </div>
+
+                  {/* Notes */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ fontSize: '11px', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px', display: 'block' }}>Notes</label>
+                    <textarea
+                      placeholder="General notes about this item..."
+                      value={currentItem.notes || ''}
+                      onChange={(e) => onUpdateNotes(currentItem.id, e.target.value)}
+                      rows={3}
+                      style={{
+                        ...styles.input,
+                        resize: 'vertical',
+                        fontFamily: "'DM Sans', sans-serif"
+                      }}
+                    />
+                  </div>
+
+                  {/* Quick Info */}
+                  <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: '#6B7280', borderTop: '1px solid #1F2937', paddingTop: '12px' }}>
+                    <span>Qty: {currentItem.qty} + {currentItem.spareCount} spare</span>
+                    <span>Source: {currentItem.source || 'Not set'}</span>
+                    <span>Case: {currentItem.caseId ? (cases.find(c => c.id === currentItem.caseId)?.name || 'Assigned') : 'Not packed'}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       );
     }
@@ -2862,6 +3016,43 @@
         }
       };
 
+      const handleUpdateFlag = async (checklistId, flag, flagNote) => {
+        try {
+          const updates = { flag };
+          if (flagNote !== undefined) updates.flagNote = flagNote;
+          // If clearing the flag, also clear the flag note
+          if (!flag) updates.flagNote = '';
+
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, ...updates } : item
+          ));
+
+          const fields = { 'Flag': flag || null };
+          if (flagNote !== undefined) fields['Flag Note'] = flagNote || '';
+          if (!flag) fields['Flag Note'] = '';
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, fields);
+        } catch (err) {
+          console.error('Flag update failed:', err);
+          showToast('Failed to update flag', 'error');
+        }
+      };
+
+      const handleUpdateNotes = async (checklistId, notes) => {
+        try {
+          setChecklist(prev => prev.map(item =>
+            item.id === checklistId ? { ...item, notes } : item
+          ));
+
+          await updateRecord(CONFIG.TABLES.productionChecklist, checklistId, {
+            'Notes': notes || ''
+          });
+        } catch (err) {
+          console.error('Notes update failed:', err);
+          showToast('Failed to update notes', 'error');
+        }
+      };
+
       const handleBulkUpdate = async (itemIds, field, value) => {
         try {
           setChecklist(prev => prev.map(item => {
@@ -3287,6 +3478,8 @@
                 onUpdateCase={handleUpdateCase}
                 onUpdateQty={handleUpdateQty}
                 onUpdateSource={handleUpdateSource}
+                onUpdateFlag={handleUpdateFlag}
+                onUpdateNotes={handleUpdateNotes}
                 onQuickCreateCase={handleQuickCreateCase}
                 onBulkUpdate={handleBulkUpdate}
                 onInitialize={handleInitializeChecklist}
