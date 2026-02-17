@@ -2896,8 +2896,9 @@
       };
 
       const handleUpdateSource = async (checklistId, source) => {
+        const prev = checklist.find(c => c.id === checklistId)?.source;
         try {
-          setChecklist(prev => prev.map(item =>
+          setChecklist(items => items.map(item =>
             item.id === checklistId ? { ...item, source } : item
           ));
 
@@ -2906,7 +2907,12 @@
           });
         } catch (err) {
           console.error('Source update failed:', err);
-          showToast('Failed to update source', 'error');
+          // Revert optimistic update
+          setChecklist(items => items.map(item =>
+            item.id === checklistId ? { ...item, source: prev } : item
+          ));
+          const detail = err.message || 'Unknown error';
+          showToast(`Failed to update source: ${detail}`, 'error');
         }
       };
 
