@@ -2173,7 +2173,7 @@
                               }}
                               style={{
                                 ...styles.checklistItem,
-                                backgroundColor: isSelected ? '#1E293B' : (item.flag ? '#EF444408' : 'transparent'),
+                                backgroundColor: isSelected ? '#1E293B' : (item.flag ? '#EF444418' : 'transparent'),
                                 borderLeft: isSelected ? '3px solid #F59E0B' : item.flag ? '3px solid #EF4444' : '3px solid transparent',
                                 cursor: 'pointer'
                               }}
@@ -2199,9 +2199,12 @@
                                 }}
                               >
                                 {item.flag && (
-                                  <span title={item.flagNote || 'Flagged'} style={{ fontSize: '10px', flexShrink: 0 }}>🚩</span>
+                                  <span style={{ fontSize: '10px', flexShrink: 0 }}>🚩</span>
                                 )}
                                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</span>
+                                {item.flagNote && (
+                                  <span style={{ fontSize: '10px', color: '#EF4444', flexShrink: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '200px' }}>— {item.flagNote}</span>
+                                )}
                                 <span
                                   title="Equipment details"
                                   onClick={(e) => { e.stopPropagation(); onOpenEquipment(item.equipmentId, item.id); }}
