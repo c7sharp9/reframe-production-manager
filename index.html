@@ -2141,7 +2141,8 @@
                           const allDone = isSecured && isPacked && item.onItsWay;
                           const isSelected = selectedItems.has(item.id);
                           return (
-                            <div key={item.id}
+                            <React.Fragment key={item.id}>
+                            <div
                               onClick={(e) => {
                                   const tag = e.target.tagName;
                                 if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'OPTION' || tag === 'LABEL') return;
@@ -2304,6 +2305,7 @@
                                 onFocus={(e) => { e.target.style.borderBottom = '1px solid #F59E0B44'; e.target.style.color = '#9CA3AF'; }}
                               />
                             </div>
+                            </React.Fragment>
                           );
                         })}
                             </React.Fragment>
